@@ -1,0 +1,22 @@
+{
+  "name": "toccare-interactive-map-maker",
+  "version": "0.1.0",
+  "description": "An application for building interactive maps.",
+  "main": "main.js",
+  "dependencies": {
+    "electron": "^4.0.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "toccare-interactive-map-maker"
+  },
+  "keywords": [
+    "maps"
+  ],
+  "author": "Samuel Keith James",
+  "license": "ISC"
+}

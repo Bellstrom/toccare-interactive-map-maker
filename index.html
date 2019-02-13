@@ -41,6 +41,17 @@
     overflow-y: scroll;
   }
 
+  #imagebank-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 200px));
+  }
+
+  .imagebank-grid-item {
+    border-radius: 8px;
+    border: 1px solid #000;
+    text-align: center;
+  }
+
   .centered {
     position: absolute;
     top: 50%;
@@ -145,7 +156,7 @@
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_background_layer">
+      <button class="tool" id="button_background_layer" onclick="addImageTest()">
         <img src="./images/button_blank.png">
       </button>
     </div>
@@ -166,6 +177,14 @@
         }
       </script>
     </div>
+    <div id="imagebank-grid">
+    </div>
+    <script>
+    var imagegrid = document.getElementById('imagebank-grid');
+    function addImageTest() {
+       imagegrid.innerHTML = imagegrid.innerHTML + "<div class=\"imagebank-grid-item\"><img src=\"./images/blue.png\" width=\"150\"></div>";
+    }
+    </script>
     <div class="centered">
       <p>No images to display.</p>
 

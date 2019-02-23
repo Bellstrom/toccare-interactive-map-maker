@@ -4,112 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Toccare Interactive Map Maker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+  const renderer = window.require('./js/renderer');
+  </script>
 </head>
-<style>
-  body {
-    font-family: Arial;
-    font-weight: bold;
-    font-size: 20pt;
-    color: #777;
-    overflow: hidden;
-  }
-
-  #toolbar {
-    height: 100%;
-    width: 60px;
-    position: fixed;
-    z-index: 10;
-    top: 0;
-    left: 0;
-    background-color: #DDD;
-    text-align: center;
-    padding-top: 10px;
-    line-height: 40px;
-    display: grid;
-    grid-template-columns: auto;
-    grid-row-gap: 10px;
-  }
-
-  #imagebank {
-    height: 40%;
-    width: calc(100% - 60px);
-    position: fixed;
-    z-index: 9;
-    bottom: 0;
-    right: 0;
-    background-color: #CCC;
-    overflow-y: scroll;
-  }
-
-  #imagebank-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 200px));
-  }
-
-  .imagebank-grid-item {
-    border-radius: 8px;
-    border: 1px solid #000;
-    text-align: center;
-  }
-
-  .centered {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-  }
-
-  #draggablemap {
-    position: absolute;
-    z-index: 1;
-    background-color: #f5f5f5;
-    text-align: center;
-    cursor: move;
-    overflow: hidden;
-  }
-
-  canvas {
-    display: block;
-    overflow: hidden;
-  }
-
-  .grid-item {
-    text-align: center;
-    grid-template-rows: 50px 50px;
-  }
-
-  .tool {
-    border-radius: 8px;
-    padding-left: 0px;
-    background-color: #aaa;
-  }
-
-  .selected {
-    border-radius: 8px;
-    padding-left: 0px;
-    background-color: #F5F5F5;
-  }
-
-.import {
-    position: relative;
-    top: 5px;
-    left: calc(100% - 40px);
-    height: 30px;
-    width: 30px;
-}
-
-  #button_import {
-    background-color: #aaa;
-    color: white;
-    font-size: 20pt;
-  }
-
-  #image_to_import {
-    display: none;
-  }
-</style>
-
 <body>
   <div id="toolbar">
     <div class="grid-item">
@@ -156,7 +55,7 @@
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_background_layer" onclick="addImageTest()">
+      <button class="tool" id="button_background_layer">
         <img src="./images/button_blank.png">
       </button>
     </div>
@@ -167,32 +66,19 @@
 
   <div id="imagebank">
     <div class="import">
-      <button id="button_import" onclick="importImageToBank();">+</button>
-      <input type="file" id="image_to_import" accept="image/*">
-      <script>
-        function importImageToBank() {
-          document.getElementById('image_to_import').click();
-          //if ()
-          document.getElementById('imagebank').style.color = "#CCC";
-        }
-      </script>
+      <button id="button_import" onclick="document.getElementById('image_to_import').click();">+</button>
+      <input type="file" id="image_to_import" accept="image/*" onchange="renderer.addImageToBank(this.files)">
     </div>
     <div id="imagebank-grid">
     </div>
-    <script>
-    var imagegrid = document.getElementById('imagebank-grid');
-    function addImageTest() {
-       imagegrid.innerHTML = imagegrid.innerHTML + "<div class=\"imagebank-grid-item\"><img src=\"./images/blue.png\" width=\"150\"></div>";
-    }
-    </script>
-    <div class="centered">
-      <p>No images to display.</p>
 
+    <div class="centered" id="imagebank-text">
+      <p>No images to display.</p>
     </div>
   </div>
 
   <div id="draggablemap">
-    <canvas id="mapgrid" width=2000 height="2000"></canvas>
+    <canvas id="mapgrid" width=2000px height=2000px ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)"></canvas>
     <script>
       var grid = document.getElementById('mapgrid');
       if (grid.getContext) {
@@ -214,57 +100,19 @@
   </div>
 
   <script>
-    dragMap(document.getElementById("draggablemap"));
 
-    function dragMap(map) {
-      var x1 = 0,
-        y1 = 0,
-        x2 = 0,
-        y2 = 0;
-      map.onmousedown = dragBegin;
-
-      function dragBegin(e) {
-        e = e || window.event;
-        e.preventDefault();
-        x2 = e.clientX;
-        y2 = e.clientY;
-        document.onmouseup = dragEnd;
-        document.onmousemove = repositionMap;
-      }
-
-      function repositionMap(e) {
-        e = e || window.event;
-        e.preventDefault();
-        x1 = x2 - e.clientX;
-        y1 = y2 - e.clientY;
-        x2 = e.clientX;
-        y2 = e.clientY;
-        map.style.top = (map.offsetTop - y1) + "px";
-        map.style.left = (map.offsetLeft - x1) + "px";
-      }
-
-      function dragEnd() {
-        document.onmouseup = null;
-        document.onmousemove = null;
-      }
-    }
+  </script>
+  <script>
+    renderer.dragMap(document.getElementById("draggablemap"));
   </script>
 
   <script>
-    loadDatabase();
+    renderer.loadDatabase();
 
 
-    function loadDatabase() {
-      var sqlite3 = require('sqlite3').verbose();
-      console.log('Test.');
-      let mapdb = new sqlite3.Database('./database/map.db', (err) => {
-        if (err) {
-          console.error(err.message);
-        }
-        console.log('Map database loaded.');
-      });
-    }
+
   </script>
+
 
 </body>
 

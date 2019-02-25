@@ -6,10 +6,11 @@
   <title>Toccare Interactive Map Maker</title>
   <link rel="stylesheet" href="styles.css">
   <script>
-  const renderer = window.require('./js/renderer');
+    const renderer = window.require('./js/renderer');
   </script>
 </head>
-<body>
+
+<body onkeydown="renderer.pressKey(event)">
   <div id="toolbar">
     <div class="grid-item">
       <button class="tool" id="button_road_draw">
@@ -77,8 +78,9 @@
     </div>
   </div>
 
-  <div id="draggablemap">
-    <canvas id="mapgrid" width=2000px height=2000px ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)"></canvas>
+  <div id="draggablemap" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)">
+    <div id="mapcontent"></div>
+    <canvas id="mapgrid" width=2000px height=2000px onclick="renderer.deselectMapElement(event)"></canvas>
     <script>
       var grid = document.getElementById('mapgrid');
       if (grid.getContext) {
@@ -100,20 +102,11 @@
   </div>
 
   <script>
+  //  document.addEventListener('keypress', renderer.pressKey(event));
 
-  </script>
-  <script>
-    renderer.dragMap(document.getElementById("draggablemap"));
-  </script>
-
-  <script>
+    renderer.dragMap();
     renderer.loadDatabase();
-
-
-
   </script>
-
-
 </body>
 
 </html>

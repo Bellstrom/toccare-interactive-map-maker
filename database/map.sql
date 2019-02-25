@@ -1,100 +1,37 @@
 --
--- File generated with SQLiteStudio v3.2.1 on Tue Feb 12 01:08:26 2019
+-- File generated with SQLiteStudio v3.2.1 on Sun Feb 24 03:50:36 2019
 --
 -- Text encoding used: System
 --
 PRAGMA foreign_keys = off;
 BEGIN TRANSACTION;
 
+-- Table: background
+CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, background_pos_x INTEGER NOT NULL, background_pos_y INTEGER NOT NULL, background_rotation INTEGER NOT NULL, image_id TEXT REFERENCES image (image_id) NOT NULL);
+
 -- Table: image
-DROP TABLE IF EXISTS image;
-
-CREATE TABLE image (
-    image_id          INTEGER PRIMARY KEY
-                              NOT NULL
-                              UNIQUE,
-    image_description TEXT,
-    filepath          TEXT    NOT NULL
-);
-
+CREATE TABLE image (image_id INTEGER PRIMARY KEY NOT NULL UNIQUE, image_description TEXT, filepath TEXT NOT NULL);
 
 -- Table: landmark
-DROP TABLE IF EXISTS landmark;
-
-CREATE TABLE landmark (
-    landmark_id          INTEGER PRIMARY KEY
-                                 UNIQUE
-                                 NOT NULL,
-    landmark_name        TEXT,
-    landmark_description TEXT,
-    landmark_pos_x       INTEGER NOT NULL,
-    landmark_pos_y       INTEGER NOT NULL,
-    road_id              INTEGER REFERENCES road (road_id),
-    region_id            INTEGER REFERENCES region (region_id),
-    image_id             INTEGER REFERENCES image (image_id),
-    landmark_rotation    INTEGER NOT NULL
-);
-
-
--- Table: node
-DROP TABLE IF EXISTS node;
-
-CREATE TABLE node (
-    node_id    INTEGER NOT NULL
-                       UNIQUE,
-    node_pos_x REAL    NOT NULL,
-    node_pos_y REAL    NOT NULL,
-    PRIMARY KEY (
-        node_id
-    )
-);
-
+CREATE TABLE landmark (landmark_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_name TEXT, landmark_description TEXT, landmark_pos_x INTEGER NOT NULL, landmark_pos_y INTEGER NOT NULL, image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_rotation INTEGER NOT NULL);
 
 -- Table: region
-DROP TABLE IF EXISTS region;
-
-CREATE TABLE region (
-    region_id          INTEGER PRIMARY KEY
-                               NOT NULL
-                               UNIQUE,
-    region_id_super    INTEGER REFERENCES region (region_id),
-    region_name        TEXT,
-    region_description TEXT
-);
-
+CREATE TABLE region (region_id INTEGER PRIMARY KEY NOT NULL UNIQUE, region_id_super INTEGER REFERENCES region (region_id), region_name TEXT, region_description TEXT);
 
 -- Table: region_edge
-DROP TABLE IF EXISTS region_edge;
+CREATE TABLE region_edge (region_node_id_1 INTEGER REFERENCES region_node (region_node_id) NOT NULL, region_node_id_2 INTEGER REFERENCES region_node (region_node_id) NOT NULL, region_id INTEGER REFERENCES region (region_id));
 
-CREATE TABLE region_edge (
-    node_id_1 INTEGER REFERENCES node (node_id),
-    node_id_2 INTEGER REFERENCES node (node_id),
-    region_id INTEGER REFERENCES region (region_id) 
-                      NOT NULL
-);
-
+-- Table: region_node
+CREATE TABLE region_node (region_node_id INTEGER NOT NULL UNIQUE, region_node_pos_x INTEGER NOT NULL, region_node_pos_y INTEGER NOT NULL, PRIMARY KEY (region_node_id));
 
 -- Table: road
-DROP TABLE IF EXISTS road;
-
-CREATE TABLE road (
-    road_id          INTEGER NOT NULL
-                             UNIQUE,
-    road_name        TEXT,
-    road_description TEXT
-);
-
+CREATE TABLE road (road_id INTEGER NOT NULL UNIQUE, road_name TEXT, road_description TEXT);
 
 -- Table: road_edge
-DROP TABLE IF EXISTS road_edge;
+CREATE TABLE road_edge (road_node_id_1 INTEGER REFERENCES road_node (road_node_id) NOT NULL, road_node_id_2 INTEGER REFERENCES road_node (road_node_id) NOT NULL, road_id INTEGER REFERENCES road (road_id));
 
-CREATE TABLE road_edge (
-    node_id_1 INTEGER REFERENCES node (node_id),
-    node_id_2 INTEGER REFERENCES node (node_id),
-    road_id   INTEGER REFERENCES road (road_id),
-    region_id INTEGER REFERENCES region (region_id) 
-);
-
+-- Table: road_node
+CREATE TABLE road_node (road_node_id INTEGER NOT NULL UNIQUE, road_node_pos_x INTEGER NOT NULL, road_node_pos_y INTEGER NOT NULL, PRIMARY KEY (road_node_id));
 
 COMMIT TRANSACTION;
 PRAGMA foreign_keys = on;

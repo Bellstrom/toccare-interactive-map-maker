@@ -182,16 +182,6 @@ function displayImageInMap(e, id) {
     console.log("image_id is " + row.image_id);
     var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + row.image_id;
     mapdb.get(imageSelectStatement, function(err, imageRow) {
-      /*
-      var mapContent = document.getElementById("mapcontent");
-      var mapElement = "<img src=\"" + imageRow.filepath + "\" class=\"map-object\" id=\"background-" + id + "\" onclick=\"renderer.selectMapElement(event)\">";
-      mapContent.innerHTML = mapContent.innerHTML + mapElement;
-      var imgObject = document.getElementById("background-" + id);
-      imgObject.style.left = row.background_pos_x + "px";
-      imgObject.style.top = row.background_pos_y + "px";
-      imgObject.style.zindex = row.background_id + "";
-      console.log(imageRow.filepath);
-      */
       fabric.Image.fromURL(imageRow.filepath, function(img) {
         img.id = "background-" + id;
         img.left = row.background_pos_x;
@@ -202,23 +192,12 @@ function displayImageInMap(e, id) {
   });
 }
 
-exports.selectMapElement = function(e) {
-  objectSelected = e.target;
-  console.log("Selected element " + e.target.id);
-}
-
-exports.deselectMapElement = function() {
-  if (objectSelected) {
-    console.log("Deselected element " + objectSelected.id);
-    objectSelected = null;
-  }
-}
-
 exports.pressKey = function(e) {
   console.log("Key pressed.");
   switch (e.keyCode) {
     case 27: // Esc
-      exports.deselectMapElement();
+      grid.discardActiveObject();
+      grid.renderAll();
       break;
     case 46: // Delete
       deleteMapElement();
@@ -229,7 +208,6 @@ exports.pressKey = function(e) {
 function deleteMapElement() {
   if (objectSelected) {
     console.log("Element " + objectSelected.id + " marked for deletion.");
-    exports.deselectMapElement();
   }
 }
 

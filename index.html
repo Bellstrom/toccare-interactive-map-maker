@@ -78,33 +78,14 @@
     </div>
   </div>
 
-  <div id="draggablemap" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)">
+  <div id="draggablemap" onmousedown="renderer.dragMap(event)" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)" onwheel="renderer.zoomMap(event)">
     <div id="mapcontent"></div>
     <canvas id="mapgrid" width=2000px height=2000px onclick="renderer.deselectMapElement(event)"></canvas>
-    <script>
-      var grid = document.getElementById('mapgrid');
-      if (grid.getContext) {
-        var gridContext = grid.getContext("2d");
-        for (i = 0; i < 2000; i += 80) {
-          gridContext.moveTo(0, i);
-          gridContext.lineTo(grid.width, i);
-          gridContext.strokeStyle = '#aaa';
-          gridContext.stroke();
-        }
-
-        for (i = 0; i < 2000; i += 80) {
-          gridContext.moveTo(i, 0);
-          gridContext.lineTo(i, grid.width);
-          gridContext.stroke();
-        }
-      }
-    </script>
   </div>
 
   <script>
-  //  document.addEventListener('keypress', renderer.pressKey(event));
-
-    renderer.dragMap();
+    renderer.initializeMap();
+    //renderer.dragMap();
     renderer.loadDatabase();
   </script>
 </body>

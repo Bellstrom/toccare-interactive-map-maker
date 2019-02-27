@@ -1,48 +1,77 @@
 var remote = require('electron').remote;
 var sqlite3 = require('sqlite3').verbose();
 var fs = remote.require('fs');
+var fabric = require('fabric').fabric;
 
 var dialog = remote.dialog;
 var exports = module.exports;
 var mapgrid = document.getElementById("mapgrid");
 var draggablemap = document.getElementById("draggablemap");
 
+var grid;
+
 var objectSelected = null;
+var distanceScrolled = 0;
 
 var mapdb;
 
-exports.dragMap = function() {
-  var x1 = 0,
-    y1 = 0,
-    x2 = 0,
-    y2 = 0;
-  var map = document.getElementById("draggablemap");
-  map.onmousedown = dragBegin;
+exports.initializeMap = function() {
+  grid = new fabric.Canvas('mapgrid');
 
-  function dragBegin(e) {
-    e = e || window.event;
-    e.preventDefault();
-    x2 = e.clientX;
-    y2 = e.clientY;
-    document.onmouseup = dragEnd;
-    document.onmousemove = repositionMap;
+  for (i = 0; i <= 2000; i += 80) {
+    var verticalLine = new fabric.Line([i, 0, i, 2000], {
+      stroke: '#aaa',
+      strokeWidth: 2,
+      selectable: false,
+    });
+    var horizontalLine = new fabric.Line([0, i, 2000, i], {
+      stroke: '#aaa',
+      strokeWidth: 2,
+      selectable: false,
+    })
+    grid.add(verticalLine);
+    grid.add(horizontalLine);
   }
 
-  function repositionMap(e) {
-    e = e || window.event;
-    e.preventDefault();
-    x1 = x2 - e.clientX;
-    y1 = y2 - e.clientY;
-    x2 = e.clientX;
-    y2 = e.clientY;
-    map.style.top = (map.offsetTop - y1) + "px";
-    map.style.left = (map.offsetLeft - x1) + "px";
+  grid.on('mouse:wheel', function(opt) {
+    var scrollDistance = -1 * opt.e.deltaY;
+    var mapZoom = grid.getZoom();
+    mapZoom = mapZoom + scrollDistance/500;
+    if (mapZoom > 5) {
+      mapZoom = 5;
+    }
+    if (mapZoom < 0.3) {
+      mapZoom = 0.3;
+    }
+    grid.zoomToPoint({x: opt.e.offsetX, y: opt.e.offsetY}, mapZoom);
+    opt.e.preventDefault();
+    opt.e.stopPropagation();
+  });
+}
+
+exports.dragMap = function(e) {
+  if(e.button != 2) {
+    return;
   }
 
-  function dragEnd() {
-    document.onmouseup = null;
-    document.onmousemove = null;
-  }
+  var xInitial = event.clientX;
+  var yInitial = event.clientY;
+
+function repositionMap(event) {
+  var xFinal = event.clientX;
+  var yFinal = event.clientY;
+  grid.relativePan({x: xFinal - xInitial, y: yFinal - yInitial});
+  xInitial = xFinal;
+  yInitial = yFinal;
+}
+
+function endDrag(event) {
+  window.removeEventListener("mousemove", repositionMap);
+  window.removeEventListener("mouseup", endDrag);
+}
+
+window.addEventListener("mousemove", repositionMap);
+window.addEventListener("mouseup", endDrag);
 }
 
 exports.loadDatabase = function() {
@@ -153,6 +182,7 @@ function displayImageInMap(e, id) {
     console.log("image_id is " + row.image_id);
     var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + row.image_id;
     mapdb.get(imageSelectStatement, function(err, imageRow) {
+      /*
       var mapContent = document.getElementById("mapcontent");
       var mapElement = "<img src=\"" + imageRow.filepath + "\" class=\"map-object\" id=\"background-" + id + "\" onclick=\"renderer.selectMapElement(event)\">";
       mapContent.innerHTML = mapContent.innerHTML + mapElement;
@@ -161,6 +191,13 @@ function displayImageInMap(e, id) {
       imgObject.style.top = row.background_pos_y + "px";
       imgObject.style.zindex = row.background_id + "";
       console.log(imageRow.filepath);
+      */
+      fabric.Image.fromURL(imageRow.filepath, function(img) {
+        img.id = "background-" + id;
+        img.left = row.background_pos_x;
+        img.top = row.background_pos_y;
+        grid.add(img);
+      });
     });
   });
 }
@@ -207,4 +244,29 @@ exports.closeDatabase = function() {
     }
     console.log('Database closed.');
   })
+}
+
+exports.zoomMap = function(e) {
+  distanceScrolled = distanceScrolled + e.deltaY;
+  console.log("Scroll wheel used, distanceScrolled = " + distanceScrolled);
+
+  if (distanceScrolled >= 100) {
+    console.log("Zooming out.")
+    multiplyMapScale(1.1);
+
+    distanceScrolled = 0;
+  } else if (distanceScrolled <= -100) {
+    console.log("Zooming in.");
+    var map = document.getElementById("draggablemap");
+    map.style.zoom = map.style.zoom / 1.1;
+    distanceScrolled = 0;
+  }
+}
+
+function multiplyMapScale(multiplier) {
+  var map = document.getElementById("draggablemap");
+  var scale = map.style.transform;
+  var currentScale = scale.substring(6, scale.length - 1); // scale value is stored as "scale(x)".
+  var newScale = parseInt(currentScale, 10) * multiplier;
+  map.style.transform = "scale(" + newScale + ")";
 }

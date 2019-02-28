@@ -18,6 +18,7 @@ var mapdb;
 exports.initializeMap = function() {
   grid = new fabric.Canvas('mapgrid');
 
+  // draw grid
   for (i = 0; i <= 2000; i += 80) {
     var verticalLine = new fabric.Line([i, 0, i, 2000], {
       stroke: '#aaa',
@@ -33,45 +34,40 @@ exports.initializeMap = function() {
     grid.add(horizontalLine);
   }
 
-  grid.on('mouse:wheel', function(opt) {
-    var scrollDistance = -1 * opt.e.deltaY;
-    var mapZoom = grid.getZoom();
-    mapZoom = mapZoom + scrollDistance/500;
-    if (mapZoom > 5) {
-      mapZoom = 5;
-    }
-    if (mapZoom < 0.3) {
-      mapZoom = 0.3;
-    }
-    grid.zoomToPoint({x: opt.e.offsetX, y: opt.e.offsetY}, mapZoom);
-    opt.e.preventDefault();
-    opt.e.stopPropagation();
-  });
+  zoomMap();
+  updateSelection();
+}
+
+function testOn() {
+  console.log("szfsd.");
 }
 
 exports.dragMap = function(e) {
-  if(e.button != 2) {
+  if (e.button != 2) {
     return;
   }
 
   var xInitial = event.clientX;
   var yInitial = event.clientY;
 
-function repositionMap(event) {
-  var xFinal = event.clientX;
-  var yFinal = event.clientY;
-  grid.relativePan({x: xFinal - xInitial, y: yFinal - yInitial});
-  xInitial = xFinal;
-  yInitial = yFinal;
-}
+  function repositionMap(event) {
+    var xFinal = event.clientX;
+    var yFinal = event.clientY;
+    grid.relativePan({
+      x: xFinal - xInitial,
+      y: yFinal - yInitial
+    });
+    xInitial = xFinal;
+    yInitial = yFinal;
+  }
 
-function endDrag(event) {
-  window.removeEventListener("mousemove", repositionMap);
-  window.removeEventListener("mouseup", endDrag);
-}
+  function endDrag(event) {
+    window.removeEventListener("mousemove", repositionMap);
+    window.removeEventListener("mouseup", endDrag);
+  }
 
-window.addEventListener("mousemove", repositionMap);
-window.addEventListener("mouseup", endDrag);
+  window.addEventListener("mousemove", repositionMap);
+  window.addEventListener("mouseup", endDrag);
 }
 
 exports.loadDatabase = function() {
@@ -83,7 +79,7 @@ exports.loadDatabase = function() {
   });
 
   mapdb.run("CREATE TABLE image (image_id INTEGER PRIMARY KEY NOT NULL UNIQUE, image_description TEXT, filepath TEXT NOT NULL)");
-  mapdb.run("CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, background_pos_x INTEGER NOT NULL, background_pos_y INTEGER NOT NULL, background_rotation INTEGER NOT NULL, image_id TEXT REFERENCES image (image_id) NOT NULL);");
+  mapdb.run("CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, background_pos_x INTEGER NOT NULL, background_pos_y INTEGER NOT NULL, background_rotation INTEGER NOT NULL, image_id TEXT REFERENCES image (image_id) NOT NULL, background_scale_x DOUBLE NOT NULL DEFAULT (1), background_scale_y DOUBLE NOT NULL DEFAULT (1));");
 }
 
 exports.addImageToBank = function(selectedFiles) {
@@ -166,7 +162,7 @@ exports.addImageToMap = function(e) {
         if (err) {
           return console.log(err.message);
         } else {
-          displayImageInMap(e, new_id);
+          displayImageInMap(new_id);
           console.log("Element " + new_id + " added to map as background.");
         }
       });
@@ -174,9 +170,9 @@ exports.addImageToMap = function(e) {
   });
 }
 
-function displayImageInMap(e, id) {
+function displayImageInMap(id) {
   var map = document.getElementById("draggablemap");
-  var selectStatement = "SELECT background_pos_x, background_pos_y, background_rotation, image_id FROM background WHERE background_id = " + id;
+  var selectStatement = "SELECT background_pos_x, background_pos_y, background_rotation, image_id, background_scale_x, background_scale_y FROM background WHERE background_id = " + id;
 
   mapdb.get(selectStatement, function(err, row) {
     console.log("image_id is " + row.image_id);
@@ -186,6 +182,9 @@ function displayImageInMap(e, id) {
         img.id = "background-" + id;
         img.left = row.background_pos_x;
         img.top = row.background_pos_y;
+        img.scaleX = row.background_scale_x;
+        img.scaleY = row.background_scale_y;
+        img.angle = row.background_rotation;
         grid.add(img);
       });
     });
@@ -224,27 +223,64 @@ exports.closeDatabase = function() {
   })
 }
 
-exports.zoomMap = function(e) {
-  distanceScrolled = distanceScrolled + e.deltaY;
-  console.log("Scroll wheel used, distanceScrolled = " + distanceScrolled);
-
-  if (distanceScrolled >= 100) {
-    console.log("Zooming out.")
-    multiplyMapScale(1.1);
-
-    distanceScrolled = 0;
-  } else if (distanceScrolled <= -100) {
-    console.log("Zooming in.");
-    var map = document.getElementById("draggablemap");
-    map.style.zoom = map.style.zoom / 1.1;
-    distanceScrolled = 0;
-  }
-}
-
 function multiplyMapScale(multiplier) {
   var map = document.getElementById("draggablemap");
   var scale = map.style.transform;
-  var currentScale = scale.substring(6, scale.length - 1); // scale value is stored as "scale(x)".
+  var currentScale = scale.substring(6, scale.length - 1); // canvas scale value is stored as "scale(x)".
   var newScale = parseInt(currentScale, 10) * multiplier;
   map.style.transform = "scale(" + newScale + ")";
+}
+
+function zoomMap() {
+  grid.on('mouse:wheel', function(opt) {
+    var scrollDistance = -1 * opt.e.deltaY;
+    var mapZoom = grid.getZoom();
+    mapZoom = mapZoom + scrollDistance / 500;
+    if (mapZoom > 5) {
+      mapZoom = 5;
+    }
+    if (mapZoom < 0.3) {
+      mapZoom = 0.3;
+    }
+    grid.zoomToPoint({
+      x: opt.e.offsetX,
+      y: opt.e.offsetY
+    }, mapZoom);
+    opt.e.preventDefault();
+    opt.e.stopPropagation();
+  });
+}
+
+function updateSelection() {
+  grid.on('object:modified', function(opt) {
+    for (let item of grid.getActiveObjects()) {
+      var itemID = item.id.substring(11, item.id.length); // id is stored in database as INT, in canvas as "background-x"
+      var data = [item.left, item.top, item.angle, item.scaleX, item.scaleY, itemID];
+
+      var sql = 'UPDATE background SET ' +
+        'background_pos_x = ?, background_pos_y = ?, background_rotation = ?, background_scale_x = ?, background_scale_y = ? ' +
+        'WHERE background_id = ?';
+      var selectStatement = "SELECT background_pos_x, background_pos_y, background_rotation, image_id, background_scale_x, background_scale_y FROM background WHERE background_id = " + itemID;
+
+      mapdb.serialize(() => {
+        mapdb.run(sql, data, function(err) {
+          if (err) {
+            return console.log(err.message);
+          }
+          console.log('Row updated.');
+        });
+
+        mapdb.get(selectStatement, function(err, row) {
+          if (err) {
+            return console.log(err.message);
+          }
+          console.log('pos_x = ' + row.background_pos_x);
+          console.log('pos_y = ' + row.background_pos_y);
+          console.log('rotation = ' + row.background_rotation);
+          console.log('scale_x = ' + row.background_scale_x);
+          console.log('background_scale_y = ' + row.background_scale_y);
+        });
+      });
+    }
+  });
 }

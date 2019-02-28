@@ -74,11 +74,6 @@ canvas {
   position:relative;
 }
 
-#mapcontent {
-  z-index: 1;
-  position:absolute;
-}
-
 .map-object {
   position:absolute;
 }

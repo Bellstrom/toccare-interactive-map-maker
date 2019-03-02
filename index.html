@@ -50,13 +50,13 @@
     <div class="grid-item"></div>
 
     <div class="grid-item">
-      <button class="tool" id="button_landmark_layer">
+      <button class="tool" id="button_landmark_layer" onclick="renderer.setActiveLayer('landmark')">
         <img src="./images/button_blank.png">
       </button>
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_background_layer">
+      <button class="tool" id="button_background_layer" onclick="renderer.setActiveLayer('background')">
         <img src="./images/button_blank.png">
       </button>
     </div>
@@ -79,7 +79,7 @@
   </div>
 
   <div id="draggablemap" onmousedown="renderer.dragMap(event)" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)">
-    <canvas id="mapgrid" width=2000px height=2000px onclick="renderer.deselectMapElement(event)"></canvas>
+    <canvas id="mapgrid" onclick="renderer.deselectMapElement(event)"></canvas>
   </div>
 
   <script>

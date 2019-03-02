@@ -1,4 +1,8 @@
-var remote = require('electron').remote;
+const remote = require('electron').remote;
+const {
+  Menu,
+  MenuItem
+} = remote;
 var sqlite3 = require('sqlite3').verbose();
 var fs = remote.require('fs');
 var fabric = require('fabric').fabric;
@@ -10,27 +14,37 @@ var draggablemap = document.getElementById("draggablemap");
 
 var grid;
 
-var objectSelected = null;
-var distanceScrolled = 0;
+var activeLayer = "background";
+
+var mapWidth = 2000;
+var mapHeight = 2000;
 
 var mapdb;
 
 exports.initializeMap = function() {
-  grid = new fabric.Canvas('mapgrid');
+  grid = new fabric.Canvas('mapgrid', {
+    width: mapWidth,
+    height: mapHeight
+  });
 
   // draw grid
-  for (i = 0; i <= 2000; i += 80) {
-    var verticalLine = new fabric.Line([i, 0, i, 2000], {
+  for (i = 0; i <= mapHeight; i += 80) {
+    var verticalLine = new fabric.Line([i, 0, i, mapWidth], {
       stroke: '#aaa',
       strokeWidth: 2,
       selectable: false,
+      hoverCursor: "default"
     });
-    var horizontalLine = new fabric.Line([0, i, 2000, i], {
+    grid.add(verticalLine);
+  }
+
+  for (i = 0; i <= mapWidth; i += 80) {
+    var horizontalLine = new fabric.Line([0, i, mapHeight, i], {
       stroke: '#aaa',
       strokeWidth: 2,
       selectable: false,
+      hoverCursor: "default"
     })
-    grid.add(verticalLine);
     grid.add(horizontalLine);
   }
 
@@ -80,6 +94,8 @@ exports.loadDatabase = function() {
 
   mapdb.run("CREATE TABLE image (image_id INTEGER PRIMARY KEY NOT NULL UNIQUE, image_description TEXT, filepath TEXT NOT NULL)");
   mapdb.run("CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, background_pos_x INTEGER NOT NULL, background_pos_y INTEGER NOT NULL, background_rotation INTEGER NOT NULL, image_id TEXT REFERENCES image (image_id) NOT NULL, background_scale_x DOUBLE NOT NULL DEFAULT (1), background_scale_y DOUBLE NOT NULL DEFAULT (1));");
+  mapdb.run("CREATE TABLE landmark (landmark_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_name TEXT, landmark_description TEXT, landmark_pos_x INTEGER NOT NULL, landmark_pos_y INTEGER NOT NULL, image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_rotation DOUBLE NOT NULL DEFAULT (0), landmark_scale_x DOUBLE NOT NULL DEFAULT (1), landmark_scale_y DOUBLE NOT NULL DEFAULT (1));");
+
 }
 
 exports.addImageToBank = function(selectedFiles) {
@@ -128,7 +144,7 @@ function displayImageInBank(id) {
   var selectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
   mapdb.get(selectStatement, function(err, row) {
     filepath = row.filepath;
-    var htmlToAdd = "<div class=\"imagebank-grid-item\" draggable=\"true\" ondragstart=\"renderer.dragFromBank(event, " + id + ")\"><img src=\"" + filepath + "\" width=\"150\" id=\"imagebank-" + id + "\" draggable=\"false\"></div>";
+    var htmlToAdd = "<div class=\"imagebank-grid-item\" draggable=\"true\" ondragstart=\"renderer.dragFromBank(event, " + id + ")\" oncontextmenu=\"renderer.imagebankContextMenu(event, " + id + ")\"><img src=\"" + filepath + "\" width=\"150\" id=\"imagebank-" + id + "\" draggable=\"false\"></div>";
     var imagegrid = document.getElementById("imagebank-grid");
     imagegrid.innerHTML = imagegrid.innerHTML + htmlToAdd;
     console.log(htmlToAdd);
@@ -140,6 +156,11 @@ exports.dragFromBank = function(e, id) {
   e.dataTransfer.setData("text", id);
 }
 
+exports.setActiveLayer = function(layer) {
+  activeLayer = layer;
+  console.log("Set active layer to " + activeLayer);
+}
+
 exports.addImageToMap = function(e) {
   e.preventDefault();
   var new_id;
@@ -148,7 +169,7 @@ exports.addImageToMap = function(e) {
   console.log("Image ID is " + data);
 
   mapdb.serialize(function() {
-    mapdb.get("SELECT MAX(background_id) AS max FROM background", function(err, row) {
+    mapdb.get("SELECT MAX(" + activeLayer + "_id) AS max FROM " + activeLayer, function(err, row) {
       max_id = row.max;
       console.log("max_id is " + max_id);
 
@@ -158,12 +179,12 @@ exports.addImageToMap = function(e) {
         new_id = max_id + 1;
       }
 
-      mapdb.run("INSERT INTO background (background_id, background_pos_x, background_pos_y, background_rotation, image_id) VALUES (?, ?, ?, ?, ?)", [new_id, e.clientX - map.offsetLeft, e.clientY - map.offsetTop, 0, data], function(err) {
+      mapdb.run("INSERT INTO " + activeLayer + " (" + activeLayer + "_id, " + activeLayer + "_pos_x, " + activeLayer + "_pos_y, " + activeLayer + "_rotation, image_id) VALUES (?, ?, ?, ?, ?)", [new_id, e.clientX - map.offsetLeft, e.clientY - map.offsetTop, 0, data], function(err) {
         if (err) {
           return console.log(err.message);
         } else {
           displayImageInMap(new_id);
-          console.log("Element " + new_id + " added to map as background.");
+          console.log("Element " + new_id + " added to map in " + activeLayer + " layer.");
         }
       });
     });
@@ -172,7 +193,7 @@ exports.addImageToMap = function(e) {
 
 function displayImageInMap(id) {
   var map = document.getElementById("draggablemap");
-  var selectStatement = "SELECT background_pos_x, background_pos_y, background_rotation, image_id, background_scale_x, background_scale_y FROM background WHERE background_id = " + id;
+  var selectStatement = "SELECT " + activeLayer + "_pos_x AS pos_x, " + activeLayer + "_pos_y AS pos_y, " + activeLayer + "_rotation AS rotation, image_id, " + activeLayer + "_scale_x AS scale_x, " + activeLayer + "_scale_y AS scale_y FROM " + activeLayer + " WHERE " + activeLayer + "_id = " + id;
 
   mapdb.get(selectStatement, function(err, row) {
     console.log("image_id is " + row.image_id);
@@ -180,11 +201,13 @@ function displayImageInMap(id) {
     mapdb.get(imageSelectStatement, function(err, imageRow) {
       fabric.Image.fromURL(imageRow.filepath, function(img) {
         img.id = "background-" + id;
-        img.left = row.background_pos_x;
-        img.top = row.background_pos_y;
-        img.scaleX = row.background_scale_x;
-        img.scaleY = row.background_scale_y;
-        img.angle = row.background_rotation;
+        img.left = row.pos_x;
+        img.top = row.pos_y;
+        img.scaleX = row.scale_x;
+        img.scaleY = row.scale_y;
+        img.angle = row.rotation;
+        img.databaseTable = activeLayer;
+        img.databaseID = id;
         grid.add(img);
       });
     });
@@ -192,21 +215,14 @@ function displayImageInMap(id) {
 }
 
 exports.pressKey = function(e) {
-  console.log("Key pressed.");
   switch (e.keyCode) {
     case 27: // Esc
       grid.discardActiveObject();
       grid.renderAll();
       break;
     case 46: // Delete
-      deleteMapElement();
+      deleteSelectedElements();
       break;
-  }
-}
-
-function deleteMapElement() {
-  if (objectSelected) {
-    console.log("Element " + objectSelected.id + " marked for deletion.");
   }
 }
 
@@ -254,33 +270,94 @@ function zoomMap() {
 function updateSelection() {
   grid.on('object:modified', function(opt) {
     for (let item of grid.getActiveObjects()) {
-      var itemID = item.id.substring(11, item.id.length); // id is stored in database as INT, in canvas as "background-x"
-      var data = [item.left, item.top, item.angle, item.scaleX, item.scaleY, itemID];
+      var data = [item.left, item.top, item.angle, item.scaleX, item.scaleY, item.databaseID];
 
-      var sql = 'UPDATE background SET ' +
-        'background_pos_x = ?, background_pos_y = ?, background_rotation = ?, background_scale_x = ?, background_scale_y = ? ' +
-        'WHERE background_id = ?';
-      var selectStatement = "SELECT background_pos_x, background_pos_y, background_rotation, image_id, background_scale_x, background_scale_y FROM background WHERE background_id = " + itemID;
+      var sql = 'UPDATE ' + item.databaseTable + ' SET ' + item.databaseTable + '_pos_x = ?, ' + item.databaseTable + '_pos_y = ?, ' + item.databaseTable + '_rotation = ?, ' + item.databaseTable + '_scale_x = ?, ' + item.databaseTable + '_scale_y = ? ' +
+        'WHERE ' + item.databaseTable + '_id = ?';
+      var selectStatement = 'SELECT ' + item.databaseTable + '_pos_x AS pos_x, ' + item.databaseTable + '_pos_y AS pos_y, ' + item.databaseTable + '_rotation AS rotation, image_id, ' + item.databaseTable + '_scale_x AS scale_x, ' + item.databaseTable + '_scale_y AS scale_y FROM ' + item.databaseTable + ' WHERE ' + item.databaseTable + '_id = ' + item.databaseID;
 
       mapdb.serialize(() => {
         mapdb.run(sql, data, function(err) {
           if (err) {
             return console.log(err.message);
           }
-          console.log('Row updated.');
+          console.log('Row ' + item.databaseID + ' updated in table ' + item.databaseTable + '.');
         });
 
         mapdb.get(selectStatement, function(err, row) {
           if (err) {
             return console.log(err.message);
           }
-          console.log('pos_x = ' + row.background_pos_x);
-          console.log('pos_y = ' + row.background_pos_y);
-          console.log('rotation = ' + row.background_rotation);
-          console.log('scale_x = ' + row.background_scale_x);
-          console.log('background_scale_y = ' + row.background_scale_y);
+            console.log('pos_x = ' + row.pos_x);
+            console.log('pos_y = ' + row.pos_y);
+            console.log('rotation = ' + row.rotation);
+            console.log('scale_x = ' + row.scale_x);
+            console.log('scale_y = ' + row.scale_y);
         });
       });
+    }
+  });
+}
+
+function deleteSelectedElements() {
+  if (!grid.getActiveObjects()) {
+    return;
+  }
+  for (let item of grid.getActiveObjects()) {
+    removeElementFromDatabase(item);
+    grid.remove(item);
+  }
+  grid.discardActiveObject();
+  grid.renderAll();
+}
+
+function removeElementFromDatabase(element) {
+  var deleteStatement = "DELETE FROM " + element.databaseTable + " WHERE " + element.databaseTable + "_id = ?";
+  mapdb.run(deleteStatement, element.databaseID, function(err) {
+    if (err) {
+      return console.log(err.message);
+    }
+    console.log("Row " + element.databaseID + " deleted from " + element.databaseTable);
+  });
+}
+
+exports.imagebankContextMenu = function(e, id) {
+  e.preventDefault();
+  var menu = new Menu();
+  menu.append(new MenuItem({
+    label: 'Set as background image',
+    click() {
+      console.log('Set background image with image ' + id + '.');
+      setBackgroundImage(id);
+    }
+  }));
+  menu.popup({
+    window: remote.getCurrentWindow()
+  });
+}
+
+function setBackgroundImage(id) {
+  var horizontalTiles = 3;
+  var verticalTiles = 5;
+  var tileX = mapWidth / horizontalTiles;
+  var tileY = mapHeight / verticalTiles;
+  var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
+  mapdb.get(imageSelectStatement, function(err, row) {
+
+    for (i = 0; i < mapWidth; i += tileX) {
+      for (j = 0; j < mapHeight; j += tileY) {
+        fabric.Image.fromURL(row.filepath, function(img) {
+          img.scaleX = tileX / img.width;
+          img.scaleY = tileY / img.height;
+          grid.add(img);
+          grid.sendToBack(img);
+        }, {
+          left: i,
+          top: j,
+          selectable: false,
+          cursor: "default"
+        });
+      }
     }
   });
 }

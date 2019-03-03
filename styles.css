@@ -112,3 +112,13 @@ canvas {
 #image_to_import {
   display: none;
 }
+
+#form_background_tile {
+  position: fixed;
+  z-index: 10000;
+}
+
+#form_landmark {
+  position:fixed;
+  z-index: 10000;
+}

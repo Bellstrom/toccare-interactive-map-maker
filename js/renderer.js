@@ -33,7 +33,8 @@ exports.initializeMap = function() {
       stroke: '#aaa',
       strokeWidth: 2,
       selectable: false,
-      hoverCursor: "default"
+      hoverCursor: "default",
+      class: "gridline"
     });
     grid.add(verticalLine);
   }
@@ -43,7 +44,8 @@ exports.initializeMap = function() {
       stroke: '#aaa',
       strokeWidth: 2,
       selectable: false,
-      hoverCursor: "default"
+      hoverCursor: "default",
+      class: "gridline"
     })
     grid.add(horizontalLine);
   }
@@ -157,7 +159,28 @@ exports.dragFromBank = function(e, id) {
 }
 
 exports.setActiveLayer = function(layer) {
+  if (layer == activeLayer) {
+    return;
+  }
+
+  grid.forEachObject(function(obj) {
+    if(obj.databaseTable == activeLayer) {
+      console.log("Old layer.");
+      obj.selectable = false;
+      obj.hoverCursor = "default";
+    }
+
+    if(obj.databaseTable == layer) {
+      console.log("New layer.");
+      obj.selectable = true;
+      obj.hoverCursor = "move";
+    }
+  });
+
   activeLayer = layer;
+  grid.discardActiveObject();
+  grid.renderAll();
+
   console.log("Set active layer to " + activeLayer);
 }
 
@@ -270,6 +293,10 @@ function zoomMap() {
 function updateSelection() {
   grid.on('object:modified', function(opt) {
     for (let item of grid.getActiveObjects()) {
+      if(!item.databaseTable) {
+        console.log("Selected object is not in the database.");
+        return;
+      }
       var data = [item.left, item.top, item.angle, item.scaleX, item.scaleY, item.databaseID];
 
       var sql = 'UPDATE ' + item.databaseTable + ' SET ' + item.databaseTable + '_pos_x = ?, ' + item.databaseTable + '_pos_y = ?, ' + item.databaseTable + '_rotation = ?, ' + item.databaseTable + '_scale_x = ?, ' + item.databaseTable + '_scale_y = ? ' +
@@ -342,6 +369,9 @@ function setBackgroundImage(id) {
   var tileX = mapWidth / horizontalTiles;
   var tileY = mapHeight / verticalTiles;
   var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
+
+  removeBackgroundImage();
+
   mapdb.get(imageSelectStatement, function(err, row) {
 
     for (i = 0; i < mapWidth; i += tileX) {
@@ -355,9 +385,27 @@ function setBackgroundImage(id) {
           left: i,
           top: j,
           selectable: false,
-          cursor: "default"
+          hoverCursor: "default",
+          class: "backgroundTile"
         });
       }
     }
   });
+}
+
+function removeBackgroundImage() {
+  grid.forEachObject(function(obj) {
+    if(obj.class == "backgroundTile") {
+      grid.remove(obj);
+    }
+  });
+}
+
+function toggleHideGrid() {
+  grid.forEachObject(function(obj) {
+    if(obj.class == "gridline") {
+      obj.opacity = !obj.opacity;
+    }
+  });
+  grid.renderAll();
 }

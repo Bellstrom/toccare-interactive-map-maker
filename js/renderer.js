@@ -15,6 +15,7 @@ var draggablemap = document.getElementById("draggablemap");
 var grid;
 
 var activeLayer = "background";
+var activeTool = "select";
 
 var mapWidth = 2000;
 var mapHeight = 2000;
@@ -159,23 +160,32 @@ exports.dragFromBank = function(e, id) {
 }
 
 exports.setActiveLayer = function(layer) {
+  if (activeTool != "select") {
+    document.getElementById("button_" + activeLayer + "_layer").disabled = false;
+    document.getElementById("button_" + layer + "_layer").disabled = true;
+
+    activeLayer = layer;
+    return;
+  }
+
   if (layer == activeLayer) {
     return;
   }
 
   grid.forEachObject(function(obj) {
-    if(obj.databaseTable == activeLayer) {
-      console.log("Old layer.");
+    if (obj.databaseTable == activeLayer) {
       obj.selectable = false;
       obj.hoverCursor = "default";
     }
 
-    if(obj.databaseTable == layer) {
-      console.log("New layer.");
+    if (obj.databaseTable == layer) {
       obj.selectable = true;
       obj.hoverCursor = "move";
     }
   });
+
+  document.getElementById("button_" + activeLayer + "_layer").disabled = false;
+  document.getElementById("button_" + layer + "_layer").disabled = true;
 
   activeLayer = layer;
   grid.discardActiveObject();
@@ -293,7 +303,7 @@ function zoomMap() {
 function updateSelection() {
   grid.on('object:modified', function(opt) {
     for (let item of grid.getActiveObjects()) {
-      if(!item.databaseTable) {
+      if (!item.databaseTable) {
         console.log("Selected object is not in the database.");
         return;
       }
@@ -315,11 +325,11 @@ function updateSelection() {
           if (err) {
             return console.log(err.message);
           }
-            console.log('pos_x = ' + row.pos_x);
-            console.log('pos_y = ' + row.pos_y);
-            console.log('rotation = ' + row.rotation);
-            console.log('scale_x = ' + row.scale_x);
-            console.log('scale_y = ' + row.scale_y);
+          console.log('pos_x = ' + row.pos_x);
+          console.log('pos_y = ' + row.pos_y);
+          console.log('rotation = ' + row.rotation);
+          console.log('scale_x = ' + row.scale_x);
+          console.log('scale_y = ' + row.scale_y);
         });
       });
     }
@@ -355,7 +365,7 @@ exports.imagebankContextMenu = function(e, id) {
     label: 'Set as background image',
     click() {
       console.log('Set background image with image ' + id + '.');
-      setBackgroundImage(id);
+      openFormBackgroundImage(id);
     }
   }));
   menu.popup({
@@ -363,11 +373,29 @@ exports.imagebankContextMenu = function(e, id) {
   });
 }
 
-function setBackgroundImage(id) {
-  var horizontalTiles = 3;
-  var verticalTiles = 5;
-  var tileX = mapWidth / horizontalTiles;
-  var tileY = mapHeight / verticalTiles;
+function openFormBackgroundImage(id) {
+  document.getElementById("form_background_tile").style.display = "block";
+
+  document.getElementById("buttons_background_tiles").innerHTML = "<button onclick=\"renderer.setBackgroundImage(" + id + ")\">OK</button>"+"<button onclick=\"renderer.closeFormBackgroundImage()\">Cancel</button>";
+}
+
+exports.closeFormBackgroundImage = function() {
+  document.getElementById("form_background_tile").style.display = "none";
+  document.getElementById("buttons_background_tiles").innerHTML = "";
+
+  document.getElementById("text_background_tiles_width").value = "";
+  document.getElementById("text_background_tiles_height").value = "";
+}
+
+exports.setBackgroundImage = function(id) {
+  var horizontalTiles = document.getElementById("text_background_tiles_width").value;
+  var verticalTiles = document.getElementById("text_background_tiles_height").value;
+
+  if(horizontalTiles == "" || verticalTiles == "") {
+    return;
+  }
+  var tileX = mapWidth / parseInt(horizontalTiles);
+  var tileY = mapHeight / parseInt(verticalTiles);
   var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
 
   removeBackgroundImage();
@@ -391,11 +419,13 @@ function setBackgroundImage(id) {
       }
     }
   });
+
+  exports.closeFormBackgroundImage();
 }
 
 function removeBackgroundImage() {
   grid.forEachObject(function(obj) {
-    if(obj.class == "backgroundTile") {
+    if (obj.class == "backgroundTile") {
       grid.remove(obj);
     }
   });
@@ -403,9 +433,63 @@ function removeBackgroundImage() {
 
 function toggleHideGrid() {
   grid.forEachObject(function(obj) {
-    if(obj.class == "gridline") {
+    if (obj.class == "gridline") {
       obj.opacity = !obj.opacity;
     }
   });
   grid.renderAll();
+}
+
+exports.setActiveTool = function(tool) {
+  grid.discardActiveObject();
+  grid.renderAll();
+
+  document.getElementById("button_" + activeTool).disabled = false;
+  document.getElementById("button_" + tool).disabled = true;
+  deactivateActiveTool();
+  activeTool = tool;
+
+  switch (tool) {
+     case "select":
+     grid.forEachObject(function(obj) {
+       if (obj.databaseTable == activeLayer) {
+         obj.selectable = true;
+         obj.hoverCursor = "move";
+       }
+     });
+     break;
+     case "landmark_draw":
+     break;
+     case "road_draw":
+     break;
+     case "smart_road_draw":
+     break;
+     case "region_draw":
+     break;
+     case "text":
+     break;
+  }
+}
+
+function deactivateActiveTool() {
+  switch (activeTool) {
+     case "select":
+     grid.forEachObject(function(obj) {
+       if (obj.databaseTable == activeLayer) {
+         obj.selectable = false;
+         obj.hoverCursor = "default";
+       }
+     });
+     break;
+     case "landmark_draw":
+     break;
+     case "road_draw":
+     break;
+     case "smart_road_draw":
+     break;
+     case "region_draw":
+     break;
+     case "text":
+     break;
+  }
 }

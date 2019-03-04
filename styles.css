@@ -71,11 +71,11 @@ canvas {
 
 #mapgrid {
   z-index: 0;
-  position:relative;
+  position: relative;
 }
 
 .map-object {
-  position:absolute;
+  position: absolute;
 }
 
 .grid-item {
@@ -87,6 +87,11 @@ canvas {
   border-radius: 8px;
   padding-left: 0px;
   background-color: #aaa;
+}
+
+button:disabled {
+  background-color: #bbb;
+  border-style: inset;
 }
 
 .selected {
@@ -113,12 +118,24 @@ canvas {
   display: none;
 }
 
-#form_background_tile {
+.form {
   position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
   z-index: 10000;
+  background-color: #ddd;
+  font-size: 12pt;
+  text-align: center;
+  border-style: outset;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+#form_background_tile {
+  display:none;
 }
 
 #form_landmark {
-  position:fixed;
-  z-index: 10000;
+  display:none;
 }

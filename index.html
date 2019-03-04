@@ -11,36 +11,51 @@
 </head>
 
 <body onkeydown="renderer.pressKey(event)">
-  <div id="form_background_tile"></div>
-  <div id="form_landmark"></div>
+  <div class="form" id="form_background_tile">
+    <p>Please enter width and height.</p>
+    <p>Width (# of horizontal tiles):</p>
+    <input type="text" id="text_background_tiles_width">
+    <p>Height (# of vertical tiles):</p>
+    <input type="text" id="text_background_tiles_height"><br>
+    <br>
+    <div id="buttons_background_tiles">
+    </div>
+  </div>
+  <div class="form" id="form_landmark"></div>
 
   <div id="toolbar">
     <div class="grid-item">
-      <button class="tool" id="button_road_draw">
+      <button class="tool" id="button_select" disabled onclick="renderer.setActiveTool('select')">
         <img src="./images/button_blank.png">
       </button>
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_landmark_draw">
+      <button class="tool" id="button_landmark_draw" onclick="renderer.setActiveTool('landmark_draw')">
         <img src="./images/button_blank.png">
       </button>
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_region_draw">
+      <button class="tool" id="button_road_draw" onclick="renderer.setActiveTool('road_draw')">
         <img src="./images/button_blank.png">
       </button>
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_text">
+      <button class="tool" id="button_smart_road_draw" onclick="renderer.setActiveTool('smart_road_draw')">
         <img src="./images/button_blank.png">
       </button>
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_smart_road_draw">
+      <button class="tool" id="button_region_draw" onclick="renderer.setActiveTool('region_draw')">
+        <img src="./images/button_blank.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_text" onclick="renderer.setActiveTool('text')">
         <img src="./images/button_blank.png">
       </button>
     </div>
@@ -59,7 +74,7 @@
     </div>
 
     <div class="grid-item">
-      <button class="tool" id="button_background_layer" onclick="renderer.setActiveLayer('background')">
+      <button class="tool" id="button_background_layer" onclick="renderer.setActiveLayer('background')" disabled>
         <img src="./images/button_blank.png">
       </button>
     </div>

@@ -24,6 +24,8 @@ var mapdb;
 
 exports.initializeMap = function() {
   grid = new fabric.Canvas('mapgrid', {
+    top: 0,
+    left: 0,
     width: mapWidth,
     height: mapHeight
   });
@@ -79,6 +81,7 @@ exports.dragMap = function(e) {
   }
 
   function endDrag(event) {
+    console.log(grid.viewportTransform[4] * grid.getZoom() + ", " + grid.viewportTransform[5] * grid.getZoom());
     window.removeEventListener("mousemove", repositionMap);
     window.removeEventListener("mouseup", endDrag);
   }
@@ -212,7 +215,7 @@ exports.addImageToMap = function(e) {
         new_id = max_id + 1;
       }
 
-      mapdb.run("INSERT INTO " + activeLayer + " (" + activeLayer + "_id, " + activeLayer + "_pos_x, " + activeLayer + "_pos_y, " + activeLayer + "_rotation, image_id) VALUES (?, ?, ?, ?, ?)", [new_id, e.clientX - map.offsetLeft, e.clientY - map.offsetTop, 0, data], function(err) {
+      mapdb.run("INSERT INTO " + activeLayer + " (" + activeLayer + "_id, " + activeLayer + "_pos_x, " + activeLayer + "_pos_y, " + activeLayer + "_rotation, image_id) VALUES (?, ?, ?, ?, ?)", [new_id, (e.clientX - grid.viewportTransform[4]) / grid.getZoom(), (e.clientY - grid.viewportTransform[5]) / grid.getZoom(), 0, data], function(err) {
         if (err) {
           return console.log(err.message);
         } else {
@@ -270,14 +273,6 @@ exports.closeDatabase = function() {
     }
     console.log('Database closed.');
   })
-}
-
-function multiplyMapScale(multiplier) {
-  var map = document.getElementById("draggablemap");
-  var scale = map.style.transform;
-  var currentScale = scale.substring(6, scale.length - 1); // canvas scale value is stored as "scale(x)".
-  var newScale = parseInt(currentScale, 10) * multiplier;
-  map.style.transform = "scale(" + newScale + ")";
 }
 
 function zoomMap() {
@@ -376,7 +371,7 @@ exports.imagebankContextMenu = function(e, id) {
 function openFormBackgroundImage(id) {
   document.getElementById("form_background_tile").style.display = "block";
 
-  document.getElementById("buttons_background_tiles").innerHTML = "<button onclick=\"renderer.setBackgroundImage(" + id + ")\">OK</button>"+"<button onclick=\"renderer.closeFormBackgroundImage()\">Cancel</button>";
+  document.getElementById("buttons_background_tiles").innerHTML = "<button onclick=\"renderer.setBackgroundImage(" + id + ")\">OK</button>" + "<button onclick=\"renderer.closeFormBackgroundImage()\">Cancel</button>";
 }
 
 exports.closeFormBackgroundImage = function() {
@@ -391,7 +386,7 @@ exports.setBackgroundImage = function(id) {
   var horizontalTiles = document.getElementById("text_background_tiles_width").value;
   var verticalTiles = document.getElementById("text_background_tiles_height").value;
 
-  if(horizontalTiles == "" || verticalTiles == "") {
+  if (horizontalTiles == "" || verticalTiles == "") {
     return;
   }
   var tileX = mapWidth / parseInt(horizontalTiles);
@@ -450,46 +445,64 @@ exports.setActiveTool = function(tool) {
   activeTool = tool;
 
   switch (tool) {
-     case "select":
-     grid.forEachObject(function(obj) {
-       if (obj.databaseTable == activeLayer) {
-         obj.selectable = true;
-         obj.hoverCursor = "move";
-       }
-     });
-     break;
-     case "landmark_draw":
-     break;
-     case "road_draw":
-     break;
-     case "smart_road_draw":
-     break;
-     case "region_draw":
-     break;
-     case "text":
-     break;
+    case "select":
+      grid.forEachObject(function(obj) {
+        if (obj.databaseTable == activeLayer) {
+          obj.selectable = true;
+          obj.hoverCursor = "move";
+        }
+      });
+      break;
+    case "landmark_draw":
+      break;
+    case "road_draw":
+      grid.on('mouse:down', placeRoadNode);
+      break;
+    case "smart_road_draw":
+      break;
+    case "region_draw":
+      break;
+    case "text":
+      break;
   }
 }
 
 function deactivateActiveTool() {
   switch (activeTool) {
-     case "select":
-     grid.forEachObject(function(obj) {
-       if (obj.databaseTable == activeLayer) {
-         obj.selectable = false;
-         obj.hoverCursor = "default";
-       }
-     });
-     break;
-     case "landmark_draw":
-     break;
-     case "road_draw":
-     break;
-     case "smart_road_draw":
-     break;
-     case "region_draw":
-     break;
-     case "text":
-     break;
+    case "select":
+      grid.forEachObject(function(obj) {
+        if (obj.databaseTable == activeLayer) {
+          obj.selectable = false;
+          obj.hoverCursor = "default";
+        }
+      });
+      break;
+    case "landmark_draw":
+      break;
+    case "road_draw":
+      grid.off('mouse:down');
+      break;
+    case "smart_road_draw":
+      break;
+    case "region_draw":
+      break;
+    case "text":
+      break;
   }
+}
+
+function placeRoadNode(e) {
+
+}
+
+function placeRoadEdge(node1, node2) {
+  
+}
+
+function deleteRoadNode(node) {
+
+}
+
+function deleteRoadEdge(edge) {
+
 }

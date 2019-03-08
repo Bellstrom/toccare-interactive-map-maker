@@ -11,6 +11,11 @@ function createWindow() {
   })
 
   win.loadFile('index.html');
+
+  win.on('closed', function() {
+    win = null;
+  });
+  require('./js/menubar');
 }
 
 function loadDatabase() {

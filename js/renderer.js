@@ -139,7 +139,7 @@ exports.addImageToBank = function(selectedFiles) {
 
   console.log(selectedFiles);
 
-  if (!selectedFiles) {
+  if (!selectedFiles || !selectedFiles[0]) {
     console.log("File is null.");
     return;
   }
@@ -582,12 +582,8 @@ exports.setActiveTool = function(tool) {
   switch (tool) {
     case "select":
       grid.on('object:modified', updateMapElement);
-      grid.forEachObject(function(obj) {
-        if (obj.databaseTable == activeLayer) {
-          obj.selectable = true;
-          obj.hoverCursor = "move";
-        }
-      });
+      setSelectableByTable(activeLayer);
+      grid.on('mouse:dblclick', testDoubleClick);
       break;
     case "landmark_draw":
       grid.isDrawingMode = true;
@@ -596,6 +592,7 @@ exports.setActiveTool = function(tool) {
     case "road_draw":
       grid.on('mouse:down', placeRoadNode);
       grid.on('object:modified', updateRoadNode);
+      setSelectableByTable('road_node');
       break;
     case "smart_road_draw":
       break;
@@ -616,18 +613,14 @@ function deactivateActiveTool() {
   grid.off('object:modified');
   switch (activeTool) {
     case "select":
-      grid.forEachObject(function(obj) {
-        if (obj.databaseTable == activeLayer) {
-          obj.selectable = false;
-          obj.hoverCursor = "default";
-        }
-      });
+      setUnselectableByTable(activeLayer);
       break;
     case "landmark_draw":
       grid.isDrawingMode = false;
       break;
     case "road_draw":
       previousRoadNode = null;
+      setUnselectableByTable('road_node');
       break;
     case "smart_road_draw":
       break;
@@ -643,6 +636,24 @@ function deactivateActiveTool() {
       break;
     default:
   }
+}
+
+function setUnselectableByTable(table) {
+  grid.forEachObject(function(obj) {
+    if (obj.databaseTable == table) {
+      obj.selectable = false;
+      obj.hoverCursor = "default";
+    }
+  });
+}
+
+function setSelectableByTable(table) {
+  grid.forEachObject(function(obj) {
+    if (obj.databaseTable == table) {
+      obj.selectable = true;
+      obj.hoverCursor = "move";
+    }
+  });
 }
 
 function placeRoadNode(e) {
@@ -1041,4 +1052,10 @@ function addDrawnLandmarkToDatabase(item) {
 function loadPathFromJSON(pathData) {
   var parsedPathArray = JSON.parse(pathData);
   return new fabric.Path(parsedPathArray);
+}
+
+// Landmark Information Storage
+
+function testDoubleClick(e) {
+  console.log(e.target);
 }

@@ -141,4 +141,34 @@ button:disabled {
 
 #form_landmark {
   display:none;
+  height: 300px;
+}
+
+#form_landmark_grid {
+  display: grid;
+  grid-template-columns: 50% 50%;
+  grid-gap: 10px;
+}
+
+#form_landmark_images {
+  display: grid;
+  text-align: center;
+  grid-template-columns: auto;
+  grid-gap: 10px;
+  background-color: #CCC;
+  overflow-y: scroll;
+  height: 180px;
+}
+
+.form_landmark_images_item {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 8px;
+  border: 1px solid #000;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#buttons_landmark {
+
 }

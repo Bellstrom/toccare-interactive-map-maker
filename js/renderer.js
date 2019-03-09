@@ -121,6 +121,8 @@ exports.loadDatabase = function() {
   mapdb.run("CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, background_pos_x INTEGER NOT NULL, background_pos_y INTEGER NOT NULL, background_rotation INTEGER NOT NULL, image_id TEXT REFERENCES image (image_id) NOT NULL, background_scale_x DOUBLE NOT NULL DEFAULT (1), background_scale_y DOUBLE NOT NULL DEFAULT (1));");
   mapdb.run("CREATE TABLE landmark (landmark_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_name TEXT, landmark_description TEXT, landmark_pos_x INTEGER NOT NULL, landmark_pos_y INTEGER NOT NULL, image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_rotation DOUBLE NOT NULL DEFAULT (0), landmark_scale_x DOUBLE NOT NULL DEFAULT (1), landmark_scale_y DOUBLE NOT NULL DEFAULT (1));");
   mapdb.run("CREATE TABLE landmark_drawn (landmark_drawn_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_drawn_name TEXT, landmark_drawn_description TEXT, landmark_drawn_pos_x INTEGER NOT NULL, landmark_drawn_pos_y INTEGER NOT NULL, path_json TEXT NOT NULL, landmark_drawn_rotation DOUBLE NOT NULL DEFAULT (0), landmark_drawn_scale_x DOUBLE NOT NULL DEFAULT (1), landmark_drawn_scale_y DOUBLE NOT NULL DEFAULT (1));");
+  mapdb.run("CREATE TABLE image_shows_landmark (image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_id INTEGER REFERENCES landmark (landmark_id) NOT NULL);");
+  mapdb.run("CREATE TABLE image_shows_landmark_drawn (image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_drawn_id INTEGER REFERENCES landmark_drawn (landmark_drawn_id) NOT NULL);");
   mapdb.run("CREATE TABLE region (region_id INTEGER PRIMARY KEY NOT NULL UNIQUE, region_id_super INTEGER REFERENCES region (region_id), region_name TEXT, region_description TEXT);");
   mapdb.run("CREATE TABLE region_node (region_node_id INTEGER NOT NULL UNIQUE, region_node_pos_x INTEGER NOT NULL, region_node_pos_y INTEGER NOT NULL, PRIMARY KEY (region_node_id));");
   mapdb.run("CREATE TABLE region_edge (region_node_id_1 INTEGER REFERENCES region_node (region_node_id) NOT NULL, region_node_id_2 INTEGER REFERENCES region_node (region_node_id) NOT NULL, region_id INTEGER REFERENCES region (region_id));");
@@ -203,17 +205,13 @@ exports.setActiveLayer = function(layer) {
     return;
   }
 
-  grid.forEachObject(function(obj) {
-    if (obj.databaseTable == activeLayer) {
-      obj.selectable = false;
-      obj.hoverCursor = "default";
-    }
-
-    if (obj.databaseTable == layer) {
-      obj.selectable = true;
-      obj.hoverCursor = "move";
-    }
-  });
+  setSelectableByTable(activeLayer);
+  setUnselectableByTable(layer);
+  if (layer == 'landmark') {
+    setSelectableByTable('landmark_drawn');
+  } else {
+    setUnselectableByTable('landmark_drawn');
+  }
 
   document.getElementById("button_" + activeLayer + "_layer").disabled = false;
   document.getElementById("button_" + layer + "_layer").disabled = true;
@@ -511,13 +509,13 @@ exports.closeFormBackgroundImage = function() {
   document.getElementById("form_background_tile").style.display = "none";
   document.getElementById("buttons_background_tiles").innerHTML = "";
 
-  document.getElementById("text_background_tiles_width").value = "";
-  document.getElementById("text_background_tiles_height").value = "";
+  document.getElementById("text_background_tiles_horizontal").value = "";
+  document.getElementById("text_background_tiles_vertical").value = "";
 }
 
 exports.setBackgroundImage = function(id) {
-  var horizontalTiles = document.getElementById("text_background_tiles_width").value;
-  var verticalTiles = document.getElementById("text_background_tiles_height").value;
+  var horizontalTiles = document.getElementById("text_background_tiles_horizontal").value;
+  var verticalTiles = document.getElementById("text_background_tiles_vertical").value;
 
   if (horizontalTiles == "" || verticalTiles == "") {
     return;
@@ -583,7 +581,12 @@ exports.setActiveTool = function(tool) {
     case "select":
       grid.on('object:modified', updateMapElement);
       setSelectableByTable(activeLayer);
-      grid.on('mouse:dblclick', testDoubleClick);
+      if (activeLayer == 'landmark') {
+        setSelectableByTable('landmark_drawn');
+      } else {
+        setUnselectableByTable('landmark_drawn');
+      }
+      grid.on('mouse:dblclick', openFormLandmarkInformation);
       break;
     case "landmark_draw":
       grid.isDrawingMode = true;
@@ -614,8 +617,11 @@ function deactivateActiveTool() {
   switch (activeTool) {
     case "select":
       setUnselectableByTable(activeLayer);
+      setUnselectableByTable('landmark_drawn');
+      grid.off('mouse:dblclick');
       break;
     case "landmark_draw":
+      grid.off('path:created');
       grid.isDrawingMode = false;
       break;
     case "road_draw":
@@ -1011,13 +1017,12 @@ function updateText(item) {
 function addDrawnLandmark(opt) {
   var path = opt.path;
 
-  moveToLayer(path);
-
   path.set({
     'databaseTable': 'landmark_drawn',
   });
 
   addDrawnLandmarkToDatabase(path);
+  moveToLayer(path);
 
 }
 
@@ -1056,6 +1061,121 @@ function loadPathFromJSON(pathData) {
 
 // Landmark Information Storage
 
-function testDoubleClick(e) {
-  console.log(e.target);
+function openFormLandmarkInformation(e) {
+  var landmark = grid.getActiveObjects()[0];
+
+  if (!landmark) {
+    return;
+  }
+
+  if (landmark.databaseTable != 'landmark' && landmark.databaseTable != 'landmark_drawn') {
+    return;
+  }
+  grid.setActiveObject(landmark);
+  grid.renderAll();
+
+  document.getElementById("form_landmark").style.display = "block";
+
+  document.getElementById("buttons_landmark").innerHTML = "<button onclick=\"renderer.storeLandmarkInformation(\'" + landmark.databaseID + "\', \'" + landmark.databaseTable + "\')\">OK</button>" + "<button onclick=\"renderer.closeFormLandmarkInformation()\">Cancel</button>";
+  document.getElementById("form_landmark_images").setAttribute("data-databaseID", landmark.databaseID);
+  document.getElementById("form_landmark_images").setAttribute("data-databaseTable", landmark.databaseTable);
+
+  loadLandmarkInformation(landmark.databaseID, landmark.databaseTable);
+  loadLandmarkImages(landmark.databaseID, landmark.databaseTable);
+}
+
+exports.addImageToLandmark = function(e) {
+  e.preventDefault();
+  var new_id;
+  var max_id;
+
+  var landmarkimagegrid = document.getElementById("form_landmark_images");
+  var landmarkID = landmarkimagegrid.getAttribute("data-databaseID");
+  var landmarkTable = landmarkimagegrid.getAttribute("data-databaseTable");
+  var data = e.dataTransfer.getData("text");
+
+  console.log("Image ID is " + data);
+
+  mapdb.serialize(function() {
+    var insertStatement = "INSERT INTO image_shows_" + landmarkTable + " (image_id, " + landmarkTable + "_id) VALUES (?, ?)";
+    mapdb.run(insertStatement, [data, landmarkID], function(err) {
+      if (err) {
+        return console.log(err.message);
+      } else {
+        displayImageInLandmarkImages(data);
+        console.log("Image " + data + " added to landmark.");
+      }
+    });
+  });
+}
+
+function displayImageInLandmarkImages(id) {
+  var filepath;
+  var selectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
+  mapdb.get(selectStatement, function(err, row) {
+    filepath = row.filepath;
+    var htmlToAdd = "<img src=\"" + filepath + "\" class=\"form_landmark_images_item\">";
+    var landmarkimagegrid = document.getElementById("form_landmark_images");
+    landmarkimagegrid.innerHTML = landmarkimagegrid.innerHTML + htmlToAdd;
+    console.log(htmlToAdd);
+  });
+}
+
+function loadLandmarkInformation(id, table) {
+  var selectStatement = "SELECT " + table + "_name AS name, " + table + "_description AS description FROM " + table + " WHERE " + table + "_id = " + id;
+  mapdb.get(selectStatement, function(err, row) {
+    if (err) {
+      return console.log(err.message);
+    } else {
+      document.getElementById("text_landmark_name").value = row.name;
+      document.getElementById("text_area_landmark_description").value = row.description;
+    }
+  });
+}
+
+function loadLandmarkImages(id, table) {
+  var selectStatement = "SELECT image_id FROM image_shows_" + table + " WHERE " + table + "_id = " + id;
+  mapdb.each(selectStatement, function(err, row) {
+    if (err) {
+      return console.log(err.message);
+    } else {
+      displayImageInLandmarkImages(row.image_id);
+    }
+  });
+}
+
+exports.storeLandmarkInformation = function(id, table) {
+  var sql = 'UPDATE ' + table + ' SET ' + table + '_name = ?, ' + table + '_description = ? WHERE ' + table + '_id = ?';
+  var data = [document.getElementById("text_landmark_name").value, document.getElementById("text_area_landmark_description").value, id];
+  var selectStatement = "SELECT " + table + "_name AS name, " + table + "_description AS description FROM " + table + " WHERE " + table + "_id = " + id;
+  mapdb.serialize(function() {
+    mapdb.run(sql, data, function(err) {
+      if (err) {
+        return console.log(err.message);
+      }
+      console.log('Row ' + id + ' updated in table ' + table + '.');
+    });
+
+    mapdb.get(selectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      } else {
+        console.log(table + "_name = " + row.name);
+        console.log(table + "_description = " + row.description);
+      }
+    });
+  });
+
+  exports.closeFormLandmarkInformation();
+}
+
+exports.closeFormLandmarkInformation = function() {
+  document.getElementById("form_landmark").style.display = "none";
+  document.getElementById("buttons_landmark").innerHTML = "";
+  document.getElementById("form_landmark_images").innerHTML = "";
+  document.getElementById("form_landmark_images").setAttribute("data-databaseID", "");
+  document.getElementById("form_landmark_images").setAttribute("data-databaseTable", "");
+
+  document.getElementById("text_landmark_name").value = "";
+  document.getElementById("text_area_landmark_description").value = "";
 }

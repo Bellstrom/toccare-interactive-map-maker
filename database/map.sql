@@ -1,5 +1,5 @@
 --
--- File generated with SQLiteStudio v3.2.1 on Fri Mar 8 04:22:05 2019
+-- File generated with SQLiteStudio v3.2.1 on Sat Mar 9 01:28:12 2019
 --
 -- Text encoding used: System
 --
@@ -11,6 +11,12 @@ CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, back
 
 -- Table: image
 CREATE TABLE image (image_id INTEGER PRIMARY KEY NOT NULL UNIQUE, image_description TEXT, filepath TEXT NOT NULL);
+
+-- Table: image_shows_landmark
+CREATE TABLE image_shows_landmark (image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_id INTEGER REFERENCES landmark (landmark_id) NOT NULL);
+
+-- Table: image_shows_landmark_drawn
+CREATE TABLE image_shows_landmark_drawn (image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_drawn_id INTEGER REFERENCES landmark_drawn (landmark_drawn_id) NOT NULL);
 
 -- Table: landmark
 CREATE TABLE landmark (landmark_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_name TEXT, landmark_description TEXT, landmark_pos_x INTEGER NOT NULL, landmark_pos_y INTEGER NOT NULL, image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_rotation DOUBLE NOT NULL DEFAULT (0), landmark_scale_x DOUBLE NOT NULL DEFAULT (1), landmark_scale_y DOUBLE NOT NULL DEFAULT (1));

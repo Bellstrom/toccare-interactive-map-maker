@@ -13,15 +13,34 @@
 <body onkeydown="renderer.pressKey(event)">
   <div class="form" id="form_background_tile">
     <p>Please enter width and height.</p>
-    <p>Width (# of horizontal tiles):</p>
-    <input type="text" id="text_background_tiles_width">
-    <p>Height (# of vertical tiles):</p>
-    <input type="text" id="text_background_tiles_height"><br>
+    <p># of Horizontal Tiles:</p>
+    <input type="text" id="text_background_tiles_horizontal">
+    <p># of Vertical Tiles:</p>
+    <input type="text" id="text_background_tiles_vertical"><br>
     <br>
     <div id="buttons_background_tiles">
     </div>
   </div>
-  <div class="form" id="form_landmark"></div>
+
+  <div class="form" id="form_landmark">
+    <div id="form_landmark_grid">
+      <div id="form_landmark_left" class="grid-item">
+        <p>Name:</p>
+        <input type="text" id="text_landmark_name">
+        <p>Description:</p>
+        <textarea id="text_area_landmark_description" rows="8" cols="19"></textarea>
+        <br>
+      </div>
+      <div id="form_landmark_right" class="grid-item">
+        <p>Drag images from image bank here.</p>
+        <div id="form_landmark_images" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToLandmark(event)" data-databaseID="" data-databaseTable="">
+        </div>
+      </div>
+    </div>
+    <br>
+    <div id="buttons_landmark">
+    </div>
+  </div>
 
   <div id="toolbar">
     <div class="grid-item">
@@ -105,6 +124,7 @@
     //renderer.dragMap();
     renderer.loadDatabase();
     renderer.setActiveTool('select');
+    renderer.setActiveLayer('landmark');
   </script>
 </body>
 

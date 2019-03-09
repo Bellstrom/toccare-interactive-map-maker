@@ -581,6 +581,7 @@ exports.setActiveTool = function(tool) {
     case "select":
       grid.on('object:modified', updateMapElement);
       setSelectableByTable(activeLayer);
+      setSelectableByTable('text');
       if (activeLayer == 'landmark') {
         setSelectableByTable('landmark_drawn');
       } else {
@@ -602,6 +603,7 @@ exports.setActiveTool = function(tool) {
     case "region_draw":
       break;
     case "text":
+      setSelectableByTable('text');
       grid.off('text:editing:entered');
       grid.on('mouse:down', addTextToMap);
       grid.on('object:modified', addOrUpdateText);
@@ -617,6 +619,7 @@ function deactivateActiveTool() {
   switch (activeTool) {
     case "select":
       setUnselectableByTable(activeLayer);
+      setUnselectableByTable('text');
       setUnselectableByTable('landmark_drawn');
       grid.off('mouse:dblclick');
       break;
@@ -633,6 +636,7 @@ function deactivateActiveTool() {
     case "region_draw":
       break;
     case "text":
+      setUnselectableByTable('text');
       grid.on('text:editing:entered', function(e) {
         exports.setActiveTool('text');
         grid.setActiveObject(e.target);

@@ -1,58 +1,41 @@
-const remote = require('electron').remote;
+const s = require('./shared');
+
 const {
   Menu,
   MenuItem
-} = remote;
-var sqlite3 = require('sqlite3').verbose();
-var fs = remote.require('fs');
-var fabric = require('fabric').fabric;
+} = s.remote;
 
-var region_draw = require('./tool_region_draw');
-
-const numberOfMapLayers = 10;
-
-var dialog = remote.dialog;
-var exports = module.exports;
-var mapgrid = document.getElementById("mapgrid");
-
-var grid;
-
-var activeLayer = "background";
-var activeTool = "select";
-
-var layerTemplateObjects = [];
-var previousRoadNode = null;
-var previousRegionNode = null;
-
-var mapWidth = 2000;
-var mapHeight = 2000;
-
-var mapdb;
+var tool_select = require('./tool_select');
+var tool_landmark_draw = require('./tool_landmark_draw');
+var tool_road_draw = require('./tool_road_draw');
+var tool_smart_road_draw = require('./tool_smart_road_draw');
+var tool_region_draw = require('./tool_region_draw');
+var tool_text = require('./tool_text');
 
 exports.initializeMap = function() {
-  grid = new fabric.Canvas('mapgrid', {
+  grid = new s.fabric.Canvas('mapgrid', {
     top: 0,
     left: 0,
-    width: mapWidth,
-    height: mapHeight,
+    width: s.mapWidth,
+    height: s.mapHeight,
     preserveObjectStacking: true
   });
 
   // initialize layer objects
   var i;
-  for (i = 0; i < numberOfMapLayers * 2; i++) {
-    layerTemplateObjects[i] = new fabric.Line([0, 0, 1, 1], {
+  for (i = 0; i < s.numberOfMapLayers * 2; i++) {
+    s.layerTemplateObjects[i] = new s.fabric.Line([0, 0, 1, 1], {
       opacity: 0,
       selectable: false,
       hoverCursor: 'default'
     });
-    grid.add(layerTemplateObjects[i]);
+    grid.add(s.layerTemplateObjects[i]);
   }
 
   // draw grid
   var i;
-  for (i = 0; i <= mapHeight; i += 80) {
-    var verticalLine = new fabric.Line([i, 0, i, mapWidth], {
+  for (i = 0; i <= s.mapHeight; i += 80) {
+    var verticalLine = new s.fabric.Line([i, 0, i, s.mapWidth], {
       stroke: '#aaa',
       strokeWidth: 2,
       selectable: false,
@@ -63,8 +46,8 @@ exports.initializeMap = function() {
   }
 
   var i;
-  for (i = 0; i <= mapWidth; i += 80) {
-    var horizontalLine = new fabric.Line([0, i, mapHeight, i], {
+  for (i = 0; i <= s.mapWidth; i += 80) {
+    var horizontalLine = new fabric.Line([0, i, s.mapHeight, i], {
       stroke: '#aaa',
       strokeWidth: 2,
       selectable: false,
@@ -110,7 +93,7 @@ exports.dragMap = function(e) {
 }
 
 exports.loadDatabase = function() {
-  mapdb = new sqlite3.Database(':memory:', (err) => {
+  mapdb = new s.sqlite3.Database(':memory:', (err) => {
     if (err) {
       console.error(err.message);
     }
@@ -281,7 +264,7 @@ function moveToLayer(obj) {
     return;
   }
 
-  var layerIndex = grid.getObjects().indexOf(layerTemplateObjects[layerToMoveTo]);
+  var layerIndex = grid.getObjects().indexOf(s.layerTemplateObjects[layerToMoveTo]);
   grid.moveTo(obj, layerIndex - 1);
 }
 
@@ -313,42 +296,16 @@ exports.addImageToMap = function(e) {
         new_id = max_id + 1;
       }
 
-      mapdb.run("INSERT INTO " + activeLayer + " (" + activeLayer + "_id, " + activeLayer + "_pos_x, " + activeLayer + "_pos_y, " + activeLayer + "_rotation, image_id) VALUES (?, ?, ?, ?, ?)", [new_id, getRelativeCursorX(e), getRelativeCursorY(e), 0, data], function(err) {
+      mapdb.run("INSERT INTO " + activeLayer + " (" + activeLayer + "_id, " + activeLayer + "_pos_x, " + activeLayer + "_pos_y, " + activeLayer + "_rotation, image_id) VALUES (?, ?, ?, ?, ?)", [new_id, s.getRelativeCursorX(e), s.getRelativeCursorY(e), 0, data], function(err) {
         if (err) {
           return console.log(err.message);
         } else {
           displayImageInMap(new_id);
-          console.log("Element " + new_id + " added to map in " + activeLayer + " layer at position (" + getRelativeCursorX(e) + ", " + getRelativeCursorY(e) + ").");
+          console.log("Element " + new_id + " added to map in " + activeLayer + " layer at position (" + s.getRelativeCursorX(e) + ", " + s.getRelativeCursorY(e) + ").");
         }
       });
     });
   });
-}
-
-function getRelativeCursorX(e) {
-  var clientX;
-  if (e.clientX) {
-    clientX = e.clientX;
-  } else if (e.e.clientX) {
-    clientX = e.e.clientX;
-  } else {
-    console.log("Error getting clientX.");
-    return;
-  }
-  return (clientX - grid.viewportTransform[4]) / grid.getZoom();
-}
-
-function getRelativeCursorY(e) {
-  var clientY;
-  if (e.clientY) {
-    clientY = e.clientY;
-  } else if (e.e.clientY) {
-    clientY = e.e.clientY;
-  } else {
-    console.log("Error getting clientX.");
-    return;
-  }
-  return (clientY - grid.viewportTransform[5]) / grid.getZoom();
 }
 
 function displayImageInMap(id) {
@@ -379,7 +336,7 @@ exports.pressKey = function(e) {
     case 27: // Esc
       grid.discardActiveObject();
       grid.renderAll();
-      previousRoadNode = null;
+      s.previousRoadNode = null;
       break;
     case 46: // Delete
       deleteSelectedElements();
@@ -461,27 +418,17 @@ function deleteSelectedElements() {
   }
   if (activeTool == 'road_draw') {
     for (let item of grid.getActiveObjects()) {
-      deleteRoadNode(item);
-      previousRoadNode = null;
+      tool_road_draw.deleteRoadNode(item);
+      s.previousRoadNode = null;
     }
   } else {
     for (let item of grid.getActiveObjects()) {
-      removeElementFromDatabase(item);
+      s.removeElementFromDatabase(item);
       grid.remove(item);
     }
   }
   grid.discardActiveObject();
   grid.renderAll();
-}
-
-function removeElementFromDatabase(element) {
-  var deleteStatement = "DELETE FROM " + element.databaseTable + " WHERE " + element.databaseTable + "_id = ?";
-  mapdb.run(deleteStatement, element.databaseID, function(err) {
-    if (err) {
-      return console.log(err.message);
-    }
-    console.log("Row " + element.databaseID + " deleted from " + element.databaseTable);
-  });
 }
 
 exports.imagebankContextMenu = function(e, id) {
@@ -495,7 +442,7 @@ exports.imagebankContextMenu = function(e, id) {
     }
   }));
   menu.popup({
-    window: remote.getCurrentWindow()
+    window: s.remote.getCurrentWindow()
   });
 }
 
@@ -520,8 +467,8 @@ exports.setBackgroundImage = function(id) {
   if (horizontalTiles == "" || verticalTiles == "") {
     return;
   }
-  var tileX = mapWidth / parseInt(horizontalTiles);
-  var tileY = mapHeight / parseInt(verticalTiles);
+  var tileX = s.mapWidth / parseInt(horizontalTiles);
+  var tileY = s.mapHeight / parseInt(verticalTiles);
   var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
 
   exports.removeBackgroundImage();
@@ -529,8 +476,8 @@ exports.setBackgroundImage = function(id) {
   mapdb.get(imageSelectStatement, function(err, row) {
 
     var i, j;
-    for (i = 0; i < mapWidth; i += tileX) {
-      for (j = 0; j < mapHeight; j += tileY) {
+    for (i = 0; i < s.mapWidth; i += tileX) {
+      for (j = 0; j < s.mapHeight; j += tileY) {
         fabric.Image.fromURL(row.filepath, function(img) {
           img.scaleX = tileX / img.width;
           img.scaleY = tileY / img.height;
@@ -591,11 +538,11 @@ exports.setActiveTool = function(tool) {
       break;
     case "landmark_draw":
       grid.isDrawingMode = true;
-      grid.on('path:created', addDrawnLandmark);
+      grid.on('path:created', tool_landmark_draw.addDrawnLandmark);
       break;
     case "road_draw":
-      grid.on('mouse:down', placeRoadNode);
-      grid.on('object:modified', updateRoadNode);
+      grid.on('mouse:down', tool_road_draw.placeRoadNode);
+      grid.on('object:modified', tool_road_draw.updateRoadNode);
       setSelectableByTable('road_node');
       break;
     case "smart_road_draw":
@@ -605,9 +552,9 @@ exports.setActiveTool = function(tool) {
     case "text":
       setSelectableByTable('text');
       grid.off('text:editing:entered');
-      grid.on('mouse:down', addTextToMap);
-      grid.on('object:modified', addOrUpdateText);
-      grid.on('text:editing:exited', cleanUpEmptyITexts);
+      grid.on('mouse:down', tool_text.addTextToMap);
+      grid.on('object:modified', tool_text.addOrUpdateText);
+      grid.on('text:editing:exited', tool_text.cleanUpEmptyITexts);
       break;
     default:
   }
@@ -628,7 +575,7 @@ function deactivateActiveTool() {
       grid.isDrawingMode = false;
       break;
     case "road_draw":
-      previousRoadNode = null;
+      s.previousRoadNode = null;
       setUnselectableByTable('road_node');
       break;
     case "smart_road_draw":
@@ -664,403 +611,6 @@ function setSelectableByTable(table) {
       obj.hoverCursor = "move";
     }
   });
-}
-
-function placeRoadNode(e) {
-  if (grid.getActiveObject()) {
-    previousRoadNode = grid.getActiveObject();
-    return;
-  }
-
-  // Create new node
-  var new_id;
-  var max_id;
-
-  mapdb.serialize(function() {
-    mapdb.get("SELECT MAX(road_node_id) AS max FROM road_node", function(err, row) {
-      max_id = row.max;
-      console.log("max_id is " + max_id);
-
-      if (!max_id) { // If there are no rows in the road_node table
-        new_id = 1;
-      } else {
-        new_id = max_id + 1;
-      }
-
-
-    });
-    mapdb.run("INSERT INTO road_node (road_node_id, road_node_pos_x, road_node_pos_y) VALUES (?, ?, ?)", [new_id, getRelativeCursorX(e), getRelativeCursorY(e)], function(err) {
-      if (err) {
-        return console.log(err.message);
-      } else {
-        displayRoadNodeInMap(new_id);
-        console.log("Node " + new_id + " added to map in road_node table.");
-      }
-
-      if (previousRoadNode) {
-        placeRoadEdge(previousRoadNode.databaseID, new_id);
-      }
-
-    });
-  });
-}
-
-function displayRoadNodeInMap(id) {
-  var selectStatement = "SELECT road_node_pos_x AS pos_x, road_node_pos_y AS pos_y FROM road_node WHERE road_node_id = " + id;
-  var new_node;
-
-  mapdb.serialize(function() {
-    mapdb.get(selectStatement, function(err, row) {
-      if (err) {
-        return console.log(err.message);
-      } else {
-        var node = new fabric.Circle({
-          left: row.pos_x,
-          top: row.pos_y,
-          originX: 'center',
-          originY: 'center',
-          strokeWidth: 2,
-          radius: 8,
-          fill: '#fff',
-          stroke: '#777',
-          databaseID: id,
-          databaseTable: 'road_node',
-          hasControls: false,
-          edgeArray: [],
-        });
-        addToMap(node);
-        grid.setActiveObject(node);
-        previousRoadNode = node;
-      }
-    });
-  });
-
-  return grid.getActiveObject();
-}
-
-function placeRoadEdge(node_id_1, node_id_2) {
-  mapdb.run("INSERT INTO road_edge (road_node_id_1, road_node_id_2) VALUES (?, ?)", [node_id_1, node_id_2], function(err) {
-    if (err) {
-      return console.log(err.message);
-    } else {
-      if (displayRoadEdgeInMap(node_id_1, node_id_2)) {
-        console.log("Placed edge between " + node_id_1 + " and " + node_id_2);
-      } else {
-        console.log("Placement failed.");
-      }
-    }
-  });
-}
-
-function displayRoadEdgeInMap(node_id_1, node_id_2) {
-  var node_1;
-  var node_2;
-  grid.forEachObject(function(obj) {
-    if (obj.databaseTable == 'road_node') {
-      if (obj.databaseID == node_id_1) {
-        node_1 = obj;
-      } else if (obj.databaseID == node_id_2) {
-        node_2 = obj;
-      }
-    }
-  });
-
-  if (!node_1 || !node_2) {
-    console.log("Could not find nodes.");
-    return null;
-  }
-
-  var coords = [node_1.left, node_1.top, node_2.left, node_2.top];
-  var edge = new fabric.Line(coords, {
-    fill: '#ccc',
-    stroke: '#ccc',
-    strokeWidth: 8,
-    originX: 'center',
-    originY: 'center',
-    selectable: false,
-    databaseTable: 'road_edge',
-    road_node_id_1: node_id_1,
-    road_node_id_2: node_id_2,
-    hoverCursor: 'default',
-  });
-
-  addToMap(edge);
-  node_1.edgeArray.push(edge);
-  node_2.edgeArray.push(edge);
-  return edge;
-}
-
-function updateRoadNode(opt) {
-  for (let item of grid.getActiveObjects()) {
-    if (!item.databaseTable) {
-      console.log("Selected object is not in the database.");
-      continue;
-    }
-    var data = [item.left, item.top, item.databaseID];
-
-    var sql = 'UPDATE road_node SET road_node_pos_x = ?, road_node_pos_y = ? WHERE road_node_id = ?';
-    var selectStatement = 'SELECT road_node_pos_x AS pos_x, road_node_pos_y AS pos_y, road_node_id FROM road_node WHERE road_node_id = ' + item.databaseID;
-
-    mapdb.serialize(() => {
-      mapdb.run(sql, data, function(err) {
-        if (err) {
-          return console.log(err.message);
-        }
-        console.log('Row ' + item.databaseID + ' updated in table road_node.');
-        updateRoadEdges(item);
-      });
-
-      mapdb.get(selectStatement, function(err, row) {
-        if (err) {
-          return console.log(err.message);
-        }
-        console.log('pos_x = ' + row.pos_x);
-        console.log('pos_y = ' + row.pos_y);
-      });
-    });
-  }
-}
-
-function updateRoadEdges(road_node) {
-  road_node.edgeArray.forEach(function(obj) {
-    if (obj.road_node_id_1 == road_node.databaseID) {
-      obj.set({
-        'x1': road_node.left,
-        'y1': road_node.top
-      })
-    } else {
-      obj.set({
-        'x2': road_node.left,
-        'y2': road_node.top
-      })
-    }
-  });
-  grid.renderAll();
-}
-
-function deleteRoadNode(node) {
-  mapdb.serialize(function() {
-    var deleteStatement = "DELETE FROM road_edge WHERE road_node_id_1 = ? OR road_node_id_2 = ?";
-
-    mapdb.run(deleteStatement, [node.databaseID, node.databaseID], function(err) {
-      if (err) {
-        return console.log(err.message);
-      }
-      console.log("Rows deleted from road_edge.");
-    });
-
-    removeElementFromDatabase(node);
-  });
-  var deletedEdgeArray = node.edgeArray;
-  var deletedNodeID = node.databaseID;
-
-  grid.remove(node);
-
-  if (deletedEdgeArray.length == 2) {
-    console.log("Fusing edges.");
-    fuseRoadEdges(deletedEdgeArray[0], deletedEdgeArray[1], deletedNodeID);
-  } else {
-    var i;
-    for (i = 0; i < deletedEdgeArray.length; i++) {
-      console.log("Deleting an edge.");
-      deleteRoadEdgeFromMap(deletedEdgeArray[i]);
-    }
-  }
-}
-
-function deleteRoadEdgeFromMap(edge) {
-  if (!edge) {
-    console.log("Edge not found.");
-    return;
-  }
-  grid.forEachObject(function(obj) {
-    if (obj.databaseTable == 'road_node') {
-      if (obj.databaseID != obj.databaseID == edge.road_node_id_1 || obj.databaseID == edge.road_node_id_2) {
-        var i;
-        for (i = 0; i < obj.edgeArray.length + 1; i++) {
-          if (obj.edgeArray[i] == edge) {
-            obj.edgeArray.splice(i, 1);
-            console.log("Removed edge.");
-          }
-        }
-      }
-    }
-  });
-  grid.remove(edge);
-}
-
-function fuseRoadEdges(edge1, edge2, deletedNodeID) {
-  var node_id_1, node_id_2;
-
-  if (edge1.road_node_id_1 != deletedNodeID) {
-    node_id_1 = edge1.road_node_id_1;
-  } else {
-    node_id_1 = edge1.road_node_id_2;
-  }
-
-  if (edge2.road_node_id_1 != deletedNodeID) {
-    node_id_2 = edge2.road_node_id_1;
-  } else {
-    node_id_2 = edge2.road_node_id_2;
-  }
-
-  placeRoadEdge(node_id_1, node_id_2);
-  deleteRoadEdgeFromMap(edge1);
-  deleteRoadEdgeFromMap(edge2);
-}
-
-function addTextToDatabase(item) {
-  var new_id;
-  var max_id;
-
-  mapdb.serialize(function() {
-    mapdb.get("SELECT MAX(text_id) AS max FROM text", function(err, row) {
-      max_id = row.max;
-      console.log("max_id is " + max_id);
-
-      if (!max_id) { // If there are no rows in the background table
-        new_id = 1;
-      } else {
-        new_id = max_id + 1;
-      }
-
-      mapdb.run("INSERT INTO text (text_id, text_pos_x, text_pos_y, text_rotation, content) VALUES (?, ?, ?, ?, ?)", [new_id, item.left, item.top, 0, item.text], function(err) {
-        if (err) {
-          return console.log(err.message);
-        } else {
-          item.databaseID = new_id;
-          console.log("Element " + new_id + " added to map in text layer.");
-        }
-      });
-    });
-  });
-}
-
-function addTextToMap(e) {
-  if (grid.getActiveObject()) {
-    return;
-  }
-
-  var text = new fabric.IText('', {
-    left: getRelativeCursorX(e),
-    top: getRelativeCursorY(e),
-    originX: 'center',
-    originY: 'center',
-    fontSize: 24,
-    fontFamily: 'Arial',
-    textAlign: 'center',
-    databaseTable: 'text',
-    databaseID: null
-  });
-  addToMap(text);
-  grid.setActiveObject(text);
-  text.enterEditing();
-  text.hiddenTextarea.focus();
-}
-
-function addOrUpdateText(opt) {
-  for (let item of grid.getActiveObjects()) {
-    if (!item.databaseTable) {
-      console.log("Selected object is not in the database.");
-      continue;
-    }
-
-    if (!item.databaseID) {
-      addTextToDatabase(item);
-      continue;
-    }
-
-    if (item.text === '') {
-      removeElementFromDatabase(item);
-      grid.remove(item);
-      continue;
-    }
-
-    updateText(item);
-  }
-}
-
-function cleanUpEmptyITexts(opt) {
-  if (!opt.target) {
-    return;
-  }
-  if (opt.target.text == '' && !opt.target.databaseID) {
-    grid.remove(opt.target);
-  }
-}
-
-function updateText(item) {
-  var data = [item.left, item.top, item.angle, item.scaleX, item.scaleY, item.databaseID, item.text];
-
-  var sql = 'UPDATE text SET text_pos_x = ?, text_pos_y = ?, text_rotation = ?, text_scale_x = ?, text_scale_y = ?, content = ? WHERE text_id = ?';
-  var selectStatement = 'SELECT text_pos_x AS pos_x, text_pos_y AS pos_y, text_rotation AS rotation, content, text_scale_x AS scale_x, text_scale_y AS scale_y FROM text WHERE text_id = ' + item.databaseID;
-
-  mapdb.serialize(() => {
-    mapdb.run(sql, data, function(err) {
-      if (err) {
-        return console.log(err.message);
-      }
-      console.log('Row ' + item.databaseID + ' updated in table text.');
-    });
-
-    mapdb.get(selectStatement, function(err, row) {
-      if (err) {
-        return console.log(err.message);
-      }
-      console.log('pos_x = ' + row.pos_x);
-      console.log('pos_y = ' + row.pos_y);
-      console.log('rotation = ' + row.rotation);
-      console.log('scale_x = ' + row.scale_x);
-      console.log('scale_y = ' + row.scale_y);
-      console.log('content = ' + row.content);
-    });
-  });
-}
-
-// Landmark Draw Tool
-function addDrawnLandmark(opt) {
-  var path = opt.path;
-
-  path.set({
-    'databaseTable': 'landmark_drawn',
-  });
-
-  addDrawnLandmarkToDatabase(path);
-  moveToLayer(path);
-
-}
-
-function addDrawnLandmarkToDatabase(item) {
-  var new_id;
-  var max_id;
-
-  mapdb.serialize(function() {
-    mapdb.get("SELECT MAX(landmark_drawn_id) AS max FROM landmark_drawn", function(err, row) {
-      max_id = row.max;
-      console.log("max_id is " + max_id);
-
-      if (!max_id) { // If there are no rows in the background table
-        new_id = 1;
-      } else {
-        new_id = max_id + 1;
-      }
-
-      var pathData = JSON.stringify(item.path);
-      mapdb.run("INSERT INTO landmark_drawn (landmark_drawn_id, landmark_drawn_pos_x, landmark_drawn_pos_y, landmark_drawn_rotation, path_json) VALUES (?, ?, ?, ?, ?)", [new_id, item.left, item.top, 0, pathData], function(err) {
-        if (err) {
-          return console.log(err.message);
-        } else {
-          item.databaseID = new_id;
-          console.log("Element " + new_id + " added to map in landmark_drawn layer.");
-        }
-      });
-    });
-  });
-}
-
-function loadPathFromJSON(pathData) {
-  var parsedPathArray = JSON.parse(pathData);
-  return new fabric.Path(parsedPathArray);
 }
 
 // Landmark Information Storage

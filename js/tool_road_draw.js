@@ -1,7 +1,7 @@
 const s = require('./shared');
-exports.placeRegionNode = function(e) {
+exports.placeRoadNode = function(e) {
   if (grid.getActiveObject()) {
-    s.previousRegionNode = grid.getActiveObject();
+    s.previousRoadNode = grid.getActiveObject();
     return;
   }
 
@@ -10,11 +10,11 @@ exports.placeRegionNode = function(e) {
   var max_id;
 
   mapdb.serialize(function() {
-    mapdb.get("SELECT MAX(region_node_id) AS max FROM region_node", function(err, row) {
+    mapdb.get("SELECT MAX(road_node_id) AS max FROM road_node", function(err, row) {
       max_id = row.max;
       console.log("max_id is " + max_id);
 
-      if (!max_id) { // If there are no rows in the region_node table
+      if (!max_id) { // If there are no rows in the road_node table
         new_id = 1;
       } else {
         new_id = max_id + 1;
@@ -22,24 +22,24 @@ exports.placeRegionNode = function(e) {
 
 
     });
-    mapdb.run("INSERT INTO region_node (region_node_id, region_node_pos_x, region_node_pos_y) VALUES (?, ?, ?)", [new_id, s.getRelativeCursorX(e), s.getRelativeCursorY(e)], function(err) {
+    mapdb.run("INSERT INTO road_node (road_node_id, road_node_pos_x, road_node_pos_y) VALUES (?, ?, ?)", [new_id, s.getRelativeCursorX(e), s.getRelativeCursorY(e)], function(err) {
       if (err) {
         return console.log(err.message);
       } else {
-        displayRegionNodeInMap(new_id);
-        console.log("Node " + new_id + " added to map in region_node table.");
+        displayRoadNodeInMap(new_id);
+        console.log("Node " + new_id + " added to map in road_node table.");
       }
 
-      if (s.previousRegionNode) {
-        placeRegionEdge(s.previousRegionNode.databaseID, new_id);
+      if (s.previousRoadNode) {
+        placeRoadEdge(s.previousRoadNode.databaseID, new_id);
       }
 
     });
   });
 }
 
-function displayRegionNodeInMap(id) {
-  var selectStatement = "SELECT region_node_pos_x AS pos_x, region_node_pos_y AS pos_y FROM region_node WHERE region_node_id = " + id;
+function displayRoadNodeInMap(id) {
+  var selectStatement = "SELECT road_node_pos_x AS pos_x, road_node_pos_y AS pos_y FROM road_node WHERE road_node_id = " + id;
   var new_node;
 
   mapdb.serialize(function() {
@@ -57,13 +57,13 @@ function displayRegionNodeInMap(id) {
           fill: '#fff',
           stroke: '#777',
           databaseID: id,
-          databaseTable: 'region_node',
+          databaseTable: 'road_node',
           hasControls: false,
           edgeArray: [],
         });
         s.addToMap(node);
         grid.setActiveObject(node);
-        s.previousRegionNode = node;
+        s.previousRoadNode = node;
       }
     });
   });
@@ -71,12 +71,12 @@ function displayRegionNodeInMap(id) {
   return grid.getActiveObject();
 }
 
-function placeRegionEdge(node_id_1, node_id_2) {
-  mapdb.run("INSERT INTO region_edge (region_node_id_1, region_node_id_2) VALUES (?, ?)", [node_id_1, node_id_2], function(err) {
+function placeRoadEdge(node_id_1, node_id_2) {
+  mapdb.run("INSERT INTO road_edge (road_node_id_1, road_node_id_2) VALUES (?, ?)", [node_id_1, node_id_2], function(err) {
     if (err) {
       return console.log(err.message);
     } else {
-      if (displayRegionEdgeInMap(node_id_1, node_id_2)) {
+      if (displayRoadEdgeInMap(node_id_1, node_id_2)) {
         console.log("Placed edge between " + node_id_1 + " and " + node_id_2);
       } else {
         console.log("Placement failed.");
@@ -85,11 +85,11 @@ function placeRegionEdge(node_id_1, node_id_2) {
   });
 }
 
-function displayRegionEdgeInMap(node_id_1, node_id_2) {
+function displayRoadEdgeInMap(node_id_1, node_id_2) {
   var node_1;
   var node_2;
   grid.forEachObject(function(obj) {
-    if (obj.databaseTable == 'region_node') {
+    if (obj.databaseTable == 'road_node') {
       if (obj.databaseID == node_id_1) {
         node_1 = obj;
       } else if (obj.databaseID == node_id_2) {
@@ -111,9 +111,9 @@ function displayRegionEdgeInMap(node_id_1, node_id_2) {
     originX: 'center',
     originY: 'center',
     selectable: false,
-    databaseTable: 'region_edge',
-    region_node_id_1: node_id_1,
-    region_node_id_2: node_id_2,
+    databaseTable: 'road_edge',
+    road_node_id_1: node_id_1,
+    road_node_id_2: node_id_2,
     hoverCursor: 'default',
   });
 
@@ -123,7 +123,7 @@ function displayRegionEdgeInMap(node_id_1, node_id_2) {
   return edge;
 }
 
-exports.updateRegionNode = function(opt) {
+exports.updateRoadNode = function(opt) {
   for (let item of grid.getActiveObjects()) {
     if (!item.databaseTable) {
       console.log("Selected object is not in the database.");
@@ -131,16 +131,16 @@ exports.updateRegionNode = function(opt) {
     }
     var data = [item.left, item.top, item.databaseID];
 
-    var sql = 'UPDATE region_node SET region_node_pos_x = ?, region_node_pos_y = ? WHERE region_node_id = ?';
-    var selectStatement = 'SELECT region_node_pos_x AS pos_x, region_node_pos_y AS pos_y, region_node_id FROM region_node WHERE region_node_id = ' + item.databaseID;
+    var sql = 'UPDATE road_node SET road_node_pos_x = ?, road_node_pos_y = ? WHERE road_node_id = ?';
+    var selectStatement = 'SELECT road_node_pos_x AS pos_x, road_node_pos_y AS pos_y, road_node_id FROM road_node WHERE road_node_id = ' + item.databaseID;
 
     mapdb.serialize(() => {
       mapdb.run(sql, data, function(err) {
         if (err) {
           return console.log(err.message);
         }
-        console.log('Row ' + item.databaseID + ' updated in table region_node.');
-        updateRegionEdges(item);
+        console.log('Row ' + item.databaseID + ' updated in table road_node.');
+        updateRoadEdges(item);
       });
 
       mapdb.get(selectStatement, function(err, row) {
@@ -154,32 +154,32 @@ exports.updateRegionNode = function(opt) {
   }
 }
 
-function updateRegionEdges(region_node) {
-  region_node.edgeArray.forEach(function(obj) {
-    if (obj.region_node_id_1 == region_node.databaseID) {
+function updateRoadEdges(road_node) {
+  road_node.edgeArray.forEach(function(obj) {
+    if (obj.road_node_id_1 == road_node.databaseID) {
       obj.set({
-        'x1': region_node.left,
-        'y1': region_node.top
+        'x1': road_node.left,
+        'y1': road_node.top
       })
     } else {
       obj.set({
-        'x2': region_node.left,
-        'y2': region_node.top
+        'x2': road_node.left,
+        'y2': road_node.top
       })
     }
   });
   grid.renderAll();
 }
 
-exports.deleteRegionNode = function(node) {
+exports.deleteRoadNode = function(node) {
   mapdb.serialize(function() {
-    var deleteStatement = "DELETE FROM region_edge WHERE region_node_id_1 = ? OR region_node_id_2 = ?";
+    var deleteStatement = "DELETE FROM road_edge WHERE road_node_id_1 = ? OR road_node_id_2 = ?";
 
     mapdb.run(deleteStatement, [node.databaseID, node.databaseID], function(err) {
       if (err) {
         return console.log(err.message);
       }
-      console.log("Rows deleted from region_edge.");
+      console.log("Rows deleted from road_edge.");
     });
 
     s.removeElementFromDatabase(node);
@@ -191,24 +191,24 @@ exports.deleteRegionNode = function(node) {
 
   if (deletedEdgeArray.length == 2) {
     console.log("Fusing edges.");
-    fuseRegionEdges(deletedEdgeArray[0], deletedEdgeArray[1], deletedNodeID);
+    fuseRoadEdges(deletedEdgeArray[0], deletedEdgeArray[1], deletedNodeID);
   } else {
     var i;
     for (i = 0; i < deletedEdgeArray.length; i++) {
       console.log("Deleting an edge.");
-      deleteRegionEdgeFromMap(deletedEdgeArray[i]);
+      deleteRoadEdgeFromMap(deletedEdgeArray[i]);
     }
   }
 }
 
-function deleteRegionEdgeFromMap(edge) {
+function deleteRoadEdgeFromMap(edge) {
   if (!edge) {
     console.log("Edge not found.");
     return;
   }
   grid.forEachObject(function(obj) {
-    if (obj.databaseTable == 'region_node') {
-      if (obj.databaseID != obj.databaseID == edge.region_node_id_1 || obj.databaseID == edge.region_node_id_2) {
+    if (obj.databaseTable == 'road_node') {
+      if (obj.databaseID != obj.databaseID == edge.road_node_id_1 || obj.databaseID == edge.road_node_id_2) {
         var i;
         for (i = 0; i < obj.edgeArray.length + 1; i++) {
           if (obj.edgeArray[i] == edge) {
@@ -222,22 +222,22 @@ function deleteRegionEdgeFromMap(edge) {
   grid.remove(edge);
 }
 
-function fuseRegionEdges(edge1, edge2, deletedNodeID) {
+function fuseRoadEdges(edge1, edge2, deletedNodeID) {
   var node_id_1, node_id_2;
 
-  if (edge1.region_node_id_1 != deletedNodeID) {
-    node_id_1 = edge1.region_node_id_1;
+  if (edge1.road_node_id_1 != deletedNodeID) {
+    node_id_1 = edge1.road_node_id_1;
   } else {
-    node_id_1 = edge1.region_node_id_2;
+    node_id_1 = edge1.road_node_id_2;
   }
 
-  if (edge2.region_node_id_1 != deletedNodeID) {
-    node_id_2 = edge2.region_node_id_1;
+  if (edge2.road_node_id_1 != deletedNodeID) {
+    node_id_2 = edge2.road_node_id_1;
   } else {
-    node_id_2 = edge2.region_node_id_2;
+    node_id_2 = edge2.road_node_id_2;
   }
 
-  placeRegionEdge(node_id_1, node_id_2);
-  deleteRegionEdgeFromMap(edge1);
-  deleteRegionEdgeFromMap(edge2);
+  placeRoadEdge(node_id_1, node_id_2);
+  deleteRoadEdgeFromMap(edge1);
+  deleteRoadEdgeFromMap(edge2);
 }

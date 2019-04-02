@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Toccare Interactive Map Maker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    const renderer = window.require('./js/renderer');
+  </script>
+</head>
+
+<body onkeydown="renderer.pressKey(event)">
+  <div class="form" id="form_background_tile">
+    <p>Please enter width and height.</p>
+    <p># of Horizontal Tiles:</p>
+    <input type="text" id="text_background_tiles_horizontal">
+    <p># of Vertical Tiles:</p>
+    <input type="text" id="text_background_tiles_vertical"><br>
+    <br>
+    <div id="buttons_background_tiles">
+    </div>
+  </div>
+
+  <div class="form" id="form_landmark">
+    <div id="form_landmark_grid">
+      <div id="form_landmark_left" class="grid-item">
+        <p>Name:</p>
+        <input type="text" id="text_landmark_name">
+        <p>Description:</p>
+        <textarea id="text_area_landmark_description" rows="8" cols="19"></textarea>
+        <br>
+      </div>
+      <div id="form_landmark_right" class="grid-item">
+        <p>Drag images from image bank here.</p>
+        <div id="form_landmark_images" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToLandmark(event)" data-databaseID="" data-databaseTable="">
+        </div>
+      </div>
+    </div>
+    <br>
+    <div id="buttons_landmark">
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <div class="grid-item">
+      <button class="tool" id="button_select" title="Select" onclick="renderer.setActiveTool('select')">
+        <img src="./images/button_select.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_landmark_draw" title="Landmark Draw" onclick="renderer.setActiveTool('landmark_draw')">
+        <img src="./images/button_landmark_draw.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_road_draw" title="Road Draw" onclick="renderer.setActiveTool('road_draw')">
+        <img src="./images/button_road_draw.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_smart_road_draw" title="Smart Road Draw" onclick="renderer.setActiveTool('smart_road_draw')">
+        <img src="./images/button_smart_road_draw.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_region_draw" title="Region Draw" onclick="renderer.setActiveTool('region_draw')">
+        <img src="./images/button_region_draw.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_text" title="Text" onclick="renderer.setActiveTool('text')">
+        <img src="./images/button_text.png">
+      </button>
+    </div>
+
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_landmark_layer" title="Landmark Layer" onclick="renderer.setActiveLayer('landmark')">
+        <img src="./images/button_landmark_layer.png">
+      </button>
+    </div>
+
+    <div class="grid-item">
+      <button class="tool" id="button_background_layer" title="Background Layer" onclick="renderer.setActiveLayer('background')" disabled>
+        <img src="./images/button_background_layer.png">
+      </button>
+    </div>
+
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+  </div>
+
+  <div id="imagebank">
+    <div class="import">
+      <button id="button_import" onclick="document.getElementById('image_to_import').click();">+</button>
+      <input type="file" id="image_to_import" accept="image/*" onchange="renderer.addImageToBank(this.files)">
+    </div>
+    <div id="imagebank-grid">
+    </div>
+
+    <div class="centered" id="imagebank-text">
+      <p>No images to display.</p>
+    </div>
+  </div>
+
+  <div id="draggablemap" onmousedown="renderer.dragMap(event)" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)">
+    <canvas id="mapgrid" onclick="renderer.deselectMapElement(event)"></canvas>
+  </div>
+
+  <script>
+    renderer.initializeMap();
+    //renderer.dragMap();
+    renderer.loadDatabase();
+    renderer.setActiveTool('select');
+    renderer.setActiveLayer('landmark');
+  </script>
+</body>
+
+</html>

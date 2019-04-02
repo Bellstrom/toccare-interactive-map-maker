@@ -1,5 +1,6 @@
 {
   "name": "toccare-interactive-map-maker",
+  "productName": "Toccare Interactive Map Maker",
   "version": "0.1.0",
   "description": "An application for building interactive maps.",
   "main": "main.js",
@@ -9,7 +10,8 @@
     "sqlite3": "^4.0.6"
   },
   "devDependencies": {
-    "electron-builder": "^20.38.5"
+    "electron-builder": "^20.38.5",
+    "electron-packager": "^13.1.1"
   },
   "scripts": {
     "postinstall": "install-app-deps",

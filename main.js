@@ -18,20 +18,9 @@ function createWindow() {
   require('./js/menubar');
 }
 
-function loadDatabase() {
-  var sqlite3 = require('sqlite3').verbose();
-  console.log('Test.');
-  let mapdb = new sqlite3.Database('./database/map.db', (err) => {
-    if (err) {
-      console.error(err.message);
-    }
-    console.log('Map database loaded.');
-  });
-}
-
-function startup() {
-//  loadDatabase();
-  createWindow();
-}
-
 app.on('ready', createWindow)
+
+app.on('window-all-closed', function() {
+  app.quit();
+  console.log("Exiting Toccare Interactive Map Maker.");
+})

@@ -7,8 +7,36 @@ const template = [
     label: 'File',
     submenu: [
       {
-        label: 'Stub Option',
+        label: 'Save',
+        accelerator: 'CmdOrCtrl+S',
         click () {
+        }
+      },
+      {
+        label: 'Save As',
+        accelerator: 'CmdOrCtrl+Shift+S',
+        click () {
+        }
+      },
+      {
+        label: 'Open',
+        accelerator: 'CmdOrCtrl+O',
+        click (item, focusedWindow) {
+          focusedWindow.webContents.executeJavaScript('renderer.openProject()');
+        }
+      },
+      {
+        label: 'New Project',
+        accelerator: 'CmdOrCtrl+N',
+        click (item, focusedWindow) {
+          focusedWindow.webContents.executeJavaScript('renderer.newProject()');
+        }
+      },
+      {
+        label: 'Export Map',
+        accelerator: 'CmdOrCtrl+E',
+        click (item, focusedWindow) {
+          focusedWindow.webContents.executeJavaScript('renderer.exportMapToFiles()');
         }
       }
     ]
@@ -18,6 +46,7 @@ const template = [
     submenu: [
       {
         label: 'Remove Background Image',
+        accelerator: 'CmdOrCtrl+Shift+B',
         click (item, focusedWindow) {
           focusedWindow.webContents.executeJavaScript('renderer.removeBackgroundImage()');
         }
@@ -48,8 +77,16 @@ const template = [
     submenu: [
       {
         label: 'Show or Hide Grid',
+        accelerator: 'CmdOrCtrl+G',
         click (item, focusedWindow) {
           focusedWindow.webContents.executeJavaScript('renderer.toggleHideGrid()');
+        }
+      },
+      {
+        label: 'Show or Hide Background Image',
+        accelerator: 'CmdOrCtrl+B',
+        click (item, focusedWindow) {
+          focusedWindow.webContents.executeJavaScript('renderer.toggleHideBackgroundImage()');
         }
       }
     ]

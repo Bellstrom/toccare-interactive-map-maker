@@ -1,9 +1,50 @@
 const s = require('./shared');
+var activeRegion;
+
+function addRegion() {
+  var new_id;
+  var max_id;
+
+  mapdb.serialize(function() {
+    mapdb.get("SELECT MAX(region_id) AS max FROM region", function(err, row) {
+      max_id = row.max;
+      console.log("max_id is " + max_id);
+
+      if (!max_id) { // If there are no rows in the region_node table
+        new_id = 1;
+      } else {
+        new_id = max_id + 1;
+      }
+    });
+    mapdb.run("INSERT INTO region (region_id) VALUES (?)", [new_id], function(err) {
+      if (err) {
+        return console.log(err.message);
+      } else {
+        console.log("Region " + new_id + " added to map in region table.");
+        activeRegion = new_id;
+      }
+    });
+  });
+
+  return activeRegion;
+}
+
 exports.placeRegionNode = function(e) {
   if (grid.getActiveObject()) {
+    if (grid.getActiveObject().databaseTable == "region_node" && grid.getActiveObject().databaseID == activeRegion.first_node_id) {
+      console.log("Hit first node.");
+    }
     s.previousRegionNode = grid.getActiveObject();
     return;
   }
+
+  var region = activeRegion;
+
+  if (!region) {
+    region = addRegion();
+  }
+
+  console.log("activeRegion is " + activeRegion);
 
   // Create new node
   var new_id;
@@ -22,12 +63,12 @@ exports.placeRegionNode = function(e) {
 
 
     });
-    mapdb.run("INSERT INTO region_node (region_node_id, region_node_pos_x, region_node_pos_y) VALUES (?, ?, ?)", [new_id, s.getRelativeCursorX(e), s.getRelativeCursorY(e)], function(err) {
+    mapdb.run("INSERT INTO region_node (region_node_id, region_node_pos_x, region_node_pos_y, region_id) VALUES (?, ?, ?, ?)", [new_id, s.getRelativeCursorX(e), s.getRelativeCursorY(e), region], function(err) {
       if (err) {
         return console.log(err.message);
       } else {
-        displayRegionNodeInMap(new_id);
-        console.log("Node " + new_id + " added to map in region_node table.");
+        displayRegionNodeInMap(new_id, activeRegion);
+        console.log("Node " + new_id + " added to map in region_node table with activeRegion " + region + ".");
       }
 
       if (s.previousRegionNode) {
@@ -38,7 +79,7 @@ exports.placeRegionNode = function(e) {
   });
 }
 
-function displayRegionNodeInMap(id) {
+function displayRegionNodeInMap(id, region) {
   var selectStatement = "SELECT region_node_pos_x AS pos_x, region_node_pos_y AS pos_y FROM region_node WHERE region_node_id = " + id;
   var new_node;
 
@@ -58,6 +99,7 @@ function displayRegionNodeInMap(id) {
           stroke: '#777',
           databaseID: id,
           databaseTable: 'region_node',
+          regionID: region,
           hasControls: false,
           edgeArray: [],
         });

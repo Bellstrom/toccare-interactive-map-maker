@@ -5,21 +5,26 @@ const {
   MenuItem
 } = s.remote;
 
-var tool_select = require('./tool_select');
 var tool_landmark_draw = require('./tool_landmark_draw');
 var tool_road_draw = require('./tool_road_draw');
 var tool_smart_road_draw = require('./tool_smart_road_draw');
 var tool_region_draw = require('./tool_region_draw');
 var tool_text = require('./tool_text');
+var export_map = require('./export_map');
 
-exports.initializeMap = function() {
-  grid = new s.fabric.Canvas('mapgrid', {
-    top: 0,
-    left: 0,
-    width: s.mapWidth,
-    height: s.mapHeight,
-    preserveObjectStacking: true
-  });
+exports.initializeMap = function(callback) {
+  if (grid) {
+    grid.clear();
+  } else {
+    grid = new s.fabric.Canvas('mapgrid', {
+      top: 0,
+      left: 0,
+      width: s.mapWidth,
+      height: s.mapHeight,
+      preserveObjectStacking: true
+    });
+  }
+
 
   // initialize layer objects
   var i;
@@ -27,7 +32,8 @@ exports.initializeMap = function() {
     s.layerTemplateObjects[i] = new s.fabric.Line([0, 0, 1, 1], {
       opacity: 0,
       selectable: false,
-      hoverCursor: 'default'
+      hoverCursor: 'default',
+      class: 'layerTemplateObject'
     });
     grid.add(s.layerTemplateObjects[i]);
   }
@@ -58,10 +64,8 @@ exports.initializeMap = function() {
   }
 
   zoomMap();
-}
 
-function testOn() {
-  console.log("szfsd.");
+  callback();
 }
 
 exports.dragMap = function(e) {
@@ -93,6 +97,8 @@ exports.dragMap = function(e) {
 }
 
 exports.loadDatabase = function() {
+  exports.closeDatabase();
+
   mapdb = new s.sqlite3.Database(':memory:', (err) => {
     if (err) {
       console.error(err.message);
@@ -100,14 +106,14 @@ exports.loadDatabase = function() {
     console.log('Map database loaded.');
   });
 
-  mapdb.run("CREATE TABLE image (image_id INTEGER PRIMARY KEY NOT NULL UNIQUE, image_description TEXT, filepath TEXT NOT NULL)");
+  mapdb.run("CREATE TABLE image (image_id INTEGER PRIMARY KEY NOT NULL UNIQUE, image_description TEXT, filename TEXT NOT NULL)");
   mapdb.run("CREATE TABLE background (background_id INTEGER PRIMARY KEY NOT NULL UNIQUE, background_pos_x INTEGER NOT NULL, background_pos_y INTEGER NOT NULL, background_rotation INTEGER NOT NULL, image_id TEXT REFERENCES image (image_id) NOT NULL, background_scale_x DOUBLE NOT NULL DEFAULT (1), background_scale_y DOUBLE NOT NULL DEFAULT (1));");
   mapdb.run("CREATE TABLE landmark (landmark_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_name TEXT, landmark_description TEXT, landmark_pos_x INTEGER NOT NULL, landmark_pos_y INTEGER NOT NULL, image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_rotation DOUBLE NOT NULL DEFAULT (0), landmark_scale_x DOUBLE NOT NULL DEFAULT (1), landmark_scale_y DOUBLE NOT NULL DEFAULT (1));");
   mapdb.run("CREATE TABLE landmark_drawn (landmark_drawn_id INTEGER PRIMARY KEY UNIQUE NOT NULL, landmark_drawn_name TEXT, landmark_drawn_description TEXT, landmark_drawn_pos_x INTEGER NOT NULL, landmark_drawn_pos_y INTEGER NOT NULL, path_json TEXT NOT NULL, landmark_drawn_rotation DOUBLE NOT NULL DEFAULT (0), landmark_drawn_scale_x DOUBLE NOT NULL DEFAULT (1), landmark_drawn_scale_y DOUBLE NOT NULL DEFAULT (1));");
   mapdb.run("CREATE TABLE image_shows_landmark (image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_id INTEGER REFERENCES landmark (landmark_id) NOT NULL);");
   mapdb.run("CREATE TABLE image_shows_landmark_drawn (image_id INTEGER REFERENCES image (image_id) NOT NULL, landmark_drawn_id INTEGER REFERENCES landmark_drawn (landmark_drawn_id) NOT NULL);");
-  mapdb.run("CREATE TABLE region (region_id INTEGER PRIMARY KEY NOT NULL UNIQUE, region_id_super INTEGER REFERENCES region (region_id), region_name TEXT, region_description TEXT);");
-  mapdb.run("CREATE TABLE region_node (region_node_id INTEGER NOT NULL UNIQUE, region_node_pos_x INTEGER NOT NULL, region_node_pos_y INTEGER NOT NULL, PRIMARY KEY (region_node_id));");
+  mapdb.run("CREATE TABLE region (region_id INTEGER PRIMARY KEY NOT NULL UNIQUE, region_id_super INTEGER REFERENCES region (region_id), region_name TEXT, region_description TEXT, first_node_id INTEGER REFERENCES region_node (region_node_id));");
+  mapdb.run("CREATE TABLE region_node (region_node_id INTEGER NOT NULL UNIQUE, region_node_pos_x INTEGER NOT NULL, region_node_pos_y INTEGER NOT NULL, region_id INTEGER REFERENCES region (region_id) NOT NULL, PRIMARY KEY (region_node_id));");
   mapdb.run("CREATE TABLE region_edge (region_node_id_1 INTEGER REFERENCES region_node (region_node_id) NOT NULL, region_node_id_2 INTEGER REFERENCES region_node (region_node_id) NOT NULL, region_id INTEGER REFERENCES region (region_id));");
   mapdb.run("CREATE TABLE road (road_id INTEGER NOT NULL UNIQUE, road_name TEXT, road_description TEXT);");
   mapdb.run("CREATE TABLE road_node (road_node_id INTEGER NOT NULL UNIQUE, road_node_pos_x INTEGER NOT NULL, road_node_pos_y INTEGER NOT NULL, PRIMARY KEY (road_node_id));");
@@ -115,6 +121,196 @@ exports.loadDatabase = function() {
   mapdb.run("CREATE TABLE text (text_id INTEGER PRIMARY KEY NOT NULL UNIQUE, text_pos_x INTEGER NOT NULL, text_pos_y INTEGER NOT NULL, text_rotation DOUBLE NOT NULL DEFAULT (0), content TEXT REFERENCES image (image_id) NOT NULL, text_scale_x DOUBLE NOT NULL DEFAULT (1), text_scale_y DOUBLE NOT NULL DEFAULT (1));");
 
   console.log('Tables created.');
+}
+
+function loadDatabaseFromFile(filepath, callback) {
+  if (mapdb) {
+    exports.closeDatabase();
+  }
+
+  mapdb = new s.sqlite3.Database(filepath, (err) => {
+    if (err) {
+      console.error(err.message);
+      return;
+    }
+    console.log('Map database loaded.');
+    callback();
+  });
+}
+
+exports.closeDatabase = function() {
+  mapdb.close((err) => {
+    if (err) {
+      return console.log(err.message);
+    }
+    console.log('Database closed.');
+  })
+}
+
+exports.newProject = function() {
+  s.dialog.showSaveDialog({
+    filters: [{
+      name: 'Toccare Interactive Map Project (*.tim)',
+      extensions: ['tim']
+    }]
+  }, function(filename) {
+    if (filename === undefined) {
+      return;
+    }
+    console.log('Saved to ' + filename);
+    createProject(filename, function() {
+      resetInterface();
+      displayInterface();
+    });
+
+  });
+}
+
+function createProject(filename, callback) {
+  var folderPath = filename.substring(0, filename.length - 4);
+  s.fs.writeFile(filename, folderPath, function(err) {
+    if (err) {
+      return;
+    }
+
+    if (!s.fs.existsSync(folderPath)) {
+      s.fs.mkdir(folderPath, function(err) {
+        if (err) {
+          console.log(err);
+          return;
+        }
+        s.projectDirectory = folderPath;
+        var imagesFolderPath = folderPath + '\\images';
+        s.fs.mkdir(imagesFolderPath, function(err) {
+          if (err) {
+            console.log(err);
+            return;
+          }
+          var copyPath = s.projectDirectory + '\\mapData.db';
+          s.fs.copyFile(s.path.resolve(__dirname, 'map.db'), copyPath, function(err) {
+            if (err) {
+              console.log(err);
+            }
+            console.log('Database is copied to ' + copyPath);
+            loadDatabaseFromFile(copyPath, callback);
+          });
+        });
+      });
+    } else {
+      callback();
+    }
+  });
+}
+
+exports.openProject = function() {
+  s.dialog.showOpenDialog({
+    filters: [{
+      name: 'Toccare Interactive Map Project (*.tim)',
+      extensions: ['tim']
+    }]
+  }, function(filename) {
+    if (filename === undefined) {
+      return;
+    }
+    console.log('Loading project ' + filename);
+    var folderPath = filename.toString().substring(0, filename.length - 4);
+    if (!s.fs.existsSync(folderPath)) {
+      console.log('Project folder not found!');
+      s.dialog.showMessageBox(null, {
+        type: 'warning',
+        title: 'Toccare Interactive Map Maker',
+        detail: 'Project folder not found!',
+      });
+      return;
+    }
+    s.projectDirectory = folderPath;
+
+    loadDatabaseFromFile(s.projectDirectory+'\\mapData.db', function() {
+      loadDataFromDatabase();
+      displayInterface();
+    });
+  });
+}
+
+function loadDataFromDatabase() {
+  var imageSelectStatement = "SELECT image_id, filename FROM image ORDER BY image_id";
+  var backgroundSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
+  var landmarkSelectStatement = "SELECT landmark_id AS id, landmark_pos_x AS pos_x, landmark_pos_y AS pos_y, landmark_rotation AS rotation, image_id, landmark_scale_x AS scale_x, landmark_scale_y AS scale_y FROM landmark ORDER BY landmark_id";
+  var landmarkDrawnSelectStatement = "SELECT landmark_drawn_id AS id, landmark_drawn_pos_x AS pos_x, landmark_drawn_pos_y AS pos_y, landmark_drawn_rotation AS rotation, path_json, landmark_drawn_scale_x AS scale_x, landmark_drawn_scale_y AS scale_y FROM landmark_drawn ORDER BY landmark_drawn_id";
+  var textSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
+  var roadNodeSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
+  var roadEdgeSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
+
+
+  mapdb.each(selectStatement, function(err, row) {
+    var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + row.image_id;
+    mapdb.get(imageSelectStatement, function(err, imageRow) {
+      var filepath = s.getImagePath(imageRow.filename);
+      fabric.Image.fromURL(filepath, function(img) {
+        img.left = row.pos_x;
+        img.top = row.pos_y;
+        img.originX = 'center';
+        img.originY = 'center';
+        img.scaleX = row.scale_x;
+        img.scaleY = row.scale_y;
+        img.angle = row.rotation;
+        img.databaseTable = 'background';
+        img.databaseID = id;
+        img.filename = imageRow.filename;
+        addToMap(img);
+      });
+    });
+  });
+}
+
+function loadAllDataFromTable(table) {
+
+  var selectStatement = "SELECT " + table + "_pos_x AS pos_x, " + table + "_pos_y AS pos_y, " + table + "_rotation AS rotation, image_id, " + table + "_scale_x AS scale_x, " + table + "_scale_y AS scale_y FROM " + table + " WHERE " + table + "_id = " + id;
+
+  if (table == 'landmark_drawn') {
+
+  }
+
+  mapdb.each(selectStatement, function(err, row) {
+    var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + row.image_id;
+    mapdb.get(imageSelectStatement, function(err, imageRow) {
+      var filepath = s.getImagePath(imageRow.filename);
+      fabric.Image.fromURL(filepath, function(img) {
+        img.left = row.pos_x;
+        img.top = row.pos_y;
+        img.originX = 'center';
+        img.originY = 'center';
+        img.scaleX = row.scale_x;
+        img.scaleY = row.scale_y;
+        img.angle = row.rotation;
+        img.databaseTable = activeLayer;
+        img.databaseID = id;
+        img.filename = imageRow.filename;
+        addToMap(img);
+      });
+    });
+  });
+}
+
+function resetInterface() {
+  exports.initializeMap(function() {
+    exports.setActiveTool('select');
+    exports.setActiveLayer('landmark');
+  });
+}
+
+function displayInterface() {
+  document.getElementById('form_create_project').style.display = 'none';
+  document.getElementById('toolbar').style.display = 'grid';
+  document.getElementById('imagebank').style.display = 'block';
+  document.getElementById('draggablemap').style.display = 'block';
+}
+
+function hideInterface() {
+  document.getElementById('form_create_project').style.display = 'block';
+  document.getElementById('toolbar').style.display = 'none';
+  document.getElementById('imagebank').style.display = 'none';
+  document.getElementById('draggablemap').style.display = 'none';
 }
 
 exports.addImageToBank = function(selectedFiles) {
@@ -129,10 +325,19 @@ exports.addImageToBank = function(selectedFiles) {
     return;
   }
   var reader = new FileReader();
-  //reader.readAsDataURL(selectedFiles[0]);
-  //var filepath = reader.result;
-  var filepath = selectedFiles[0].path;
-  filepath = filepath.replace(/\\/g, "/");
+  console.log(selectedFiles[0]);
+
+  var filename = selectedFiles[0].name;
+
+  var copyPath = s.projectDirectory + '\\images\\' + selectedFiles[0].name;
+  console.log(copyPath);
+
+  s.fs.copyFile(selectedFiles[0].path, copyPath, function(err) {
+    if (err) {
+      console.log(err);
+    }
+    console.log('Image is copied to ' + copyPath);
+  });
 
   mapdb.serialize(function() {
     mapdb.get("SELECT MAX(image_id) AS max FROM image", function(err, row) {
@@ -146,12 +351,12 @@ exports.addImageToBank = function(selectedFiles) {
         new_id = max_id + 1;
       }
 
-      mapdb.run("INSERT INTO image (filepath, image_description, image_id) VALUES (?, ?, ?)", [filepath, description, new_id], function(err) {
+      mapdb.run("INSERT INTO image (filename, image_description, image_id) VALUES (?, ?, ?)", [filename, description, new_id], function(err) {
         if (err) {
           return console.log(err.message);
         } else {
           displayImageInBank(new_id);
-          console.log("Image " + filepath + " added to database.");
+          console.log("Image " + filename + " added to database.");
         }
       });
     });
@@ -160,9 +365,9 @@ exports.addImageToBank = function(selectedFiles) {
 
 function displayImageInBank(id) {
   var filepath;
-  var selectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
+  var selectStatement = "SELECT filename FROM image WHERE image_id = " + id;
   mapdb.get(selectStatement, function(err, row) {
-    filepath = row.filepath;
+    filepath = s.getImagePath(row.filename);
     var htmlToAdd = "<div class=\"imagebank-grid-item\" draggable=\"true\" ondragstart=\"renderer.dragFromBank(event, " + id + ")\" oncontextmenu=\"renderer.imagebankContextMenu(event, " + id + ")\"><img src=\"" + filepath + "\" width=\"150\" id=\"imagebank-" + id + "\" draggable=\"false\"></div>";
     var imagegrid = document.getElementById("imagebank-grid");
     imagegrid.innerHTML = imagegrid.innerHTML + htmlToAdd;
@@ -188,8 +393,8 @@ exports.setActiveLayer = function(layer) {
     return;
   }
 
-  setSelectableByTable(activeLayer);
-  setUnselectableByTable(layer);
+  setSelectableByTable(layer);
+  setUnselectableByTable(activeLayer);
   if (layer == 'landmark') {
     setSelectableByTable('landmark_drawn');
   } else {
@@ -313,9 +518,10 @@ function displayImageInMap(id) {
 
   mapdb.get(selectStatement, function(err, row) {
     console.log("image_id is " + row.image_id);
-    var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + row.image_id;
+    var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + row.image_id;
     mapdb.get(imageSelectStatement, function(err, imageRow) {
-      fabric.Image.fromURL(imageRow.filepath, function(img) {
+      var filepath = s.getImagePath(imageRow.filename);
+      fabric.Image.fromURL(filepath, function(img) {
         img.left = row.pos_x;
         img.top = row.pos_y;
         img.originX = 'center';
@@ -325,6 +531,7 @@ function displayImageInMap(id) {
         img.angle = row.rotation;
         img.databaseTable = activeLayer;
         img.databaseID = id;
+        img.filename = imageRow.filename;
         addToMap(img);
       });
     });
@@ -347,15 +554,6 @@ exports.pressKey = function(e) {
 
 exports.allowDrop = function(e) {
   e.preventDefault();
-}
-
-exports.closeDatabase = function() {
-  mapdb.close((err) => {
-    if (err) {
-      return console.log(err.message);
-    }
-    console.log('Database closed.');
-  })
 }
 
 function zoomMap() {
@@ -469,7 +667,7 @@ exports.setBackgroundImage = function(id) {
   }
   var tileX = s.mapWidth / parseInt(horizontalTiles);
   var tileY = s.mapHeight / parseInt(verticalTiles);
-  var imageSelectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
+  var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + id;
 
   exports.removeBackgroundImage();
 
@@ -478,17 +676,18 @@ exports.setBackgroundImage = function(id) {
     var i, j;
     for (i = 0; i < s.mapWidth; i += tileX) {
       for (j = 0; j < s.mapHeight; j += tileY) {
-        fabric.Image.fromURL(row.filepath, function(img) {
+        fabric.Image.fromURL(s.getImagePath(row.filename), function(img) {
           img.scaleX = tileX / img.width;
           img.scaleY = tileY / img.height;
-          console.log(img.class);
           addToMap(img);
         }, {
           left: i,
           top: j,
           selectable: false,
           hoverCursor: "default",
-          class: "backgroundTile"
+          class: "backgroundTile",
+          filename: row.filename,
+          image_id: id
         });
 
       }
@@ -509,6 +708,15 @@ exports.removeBackgroundImage = function() {
 exports.toggleHideGrid = function() {
   grid.forEachObject(function(obj) {
     if (obj.class == "gridline") {
+      obj.opacity = !obj.opacity;
+    }
+  });
+  grid.renderAll();
+}
+
+exports.toggleHideBackgroundImage = function() {
+  grid.forEachObject(function(obj) {
+    if (obj.class == "backgroundTile") {
       obj.opacity = !obj.opacity;
     }
   });
@@ -543,11 +751,17 @@ exports.setActiveTool = function(tool) {
     case "road_draw":
       grid.on('mouse:down', tool_road_draw.placeRoadNode);
       grid.on('object:modified', tool_road_draw.updateRoadNode);
+      grid.selection = false;
       setSelectableByTable('road_node');
+      s.setOpacityByLayer('road_node', 1);
       break;
     case "smart_road_draw":
       break;
     case "region_draw":
+      grid.on('mouse:down', tool_region_draw.placeRegionNode);
+      grid.on('object:modified', tool_region_draw.updateRegionNode);
+      grid.selection = false;
+      setSelectableByTable('region_node');
       break;
     case "text":
       setSelectableByTable('text');
@@ -573,14 +787,20 @@ function deactivateActiveTool() {
     case "landmark_draw":
       grid.off('path:created');
       grid.isDrawingMode = false;
+      setUnselectableByTable('landmark_drawn');
       break;
     case "road_draw":
       s.previousRoadNode = null;
       setUnselectableByTable('road_node');
+      s.setOpacityByLayer('road_node', 0);
+      grid.selection = true;
       break;
     case "smart_road_draw":
       break;
     case "region_draw":
+      s.previousRegionNode = null;
+      setUnselectableByTable('region_node');
+      grid.selection = true;
       break;
     case "text":
       setUnselectableByTable('text');
@@ -665,9 +885,9 @@ exports.addImageToLandmark = function(e) {
 
 function displayImageInLandmarkImages(id) {
   var filepath;
-  var selectStatement = "SELECT filepath FROM image WHERE image_id = " + id;
+  var selectStatement = "SELECT filename FROM image WHERE image_id = " + id;
   mapdb.get(selectStatement, function(err, row) {
-    filepath = row.filepath;
+    filepath = s.getImagePath(row.filename);
     var htmlToAdd = "<img src=\"" + filepath + "\" class=\"form_landmark_images_item\">";
     var landmarkimagegrid = document.getElementById("form_landmark_images");
     landmarkimagegrid.innerHTML = landmarkimagegrid.innerHTML + htmlToAdd;
@@ -732,4 +952,10 @@ exports.closeFormLandmarkInformation = function() {
 
   document.getElementById("text_landmark_name").value = "";
   document.getElementById("text_area_landmark_description").value = "";
+}
+
+// Exporting maps
+
+exports.exportMapToFiles = function() {
+  export_map.exportMap();
 }

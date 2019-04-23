@@ -2,6 +2,7 @@ exports.remote = require('electron').remote;
 exports.sqlite3 = require('sqlite3').verbose();
 exports.fs = exports.remote.require('fs');
 exports.fabric = require('fabric').fabric;
+exports.path = require('path');
 
 exports.numberOfMapLayers = 10;
 
@@ -9,7 +10,9 @@ exports.dialog = exports.remote.dialog;
 exports = module.exports;
 global.mapgrid = document.getElementById("mapgrid");
 
-global.grid;
+exports.projectDirectory;
+
+global.grid = 0;
 
 global.activeLayer = "background";
 global.activeTool = "select";
@@ -22,7 +25,8 @@ exports.regionInProgress = null;
 exports.mapWidth = 2000;
 exports.mapHeight = 2000;
 
-global.mapdb;
+global.mapdb = null;
+exports.optionsFile = null;
 
 exports.getRelativeCursorX = function(e) {
   var clientX;
@@ -130,4 +134,18 @@ exports.removeElementFromDatabase = function(element) {
 exports.loadPathFromJSON = function(pathData) {
   var parsedPathArray = JSON.parse(pathData);
   return new fabric.Path(parsedPathArray);
+}
+
+exports.setOpacityByLayer = function(layer, opacity) {
+  grid.forEachObject(function(obj) {
+    if (obj.class == layer || obj.databaseTable == layer) {
+      obj.opacity = opacity;
+    }
+  });
+  grid.renderAll();
+}
+
+exports.getImagePath = function(filename) {
+  var htmlFriendlyPath = exports.projectDirectory.replace(/\\/g, "/");
+  return htmlFriendlyPath + '/images/' + filename;
 }

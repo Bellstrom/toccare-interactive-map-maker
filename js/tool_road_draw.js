@@ -72,16 +72,48 @@ function displayRoadNodeInMap(id) {
 }
 
 function placeRoadEdge(node_id_1, node_id_2) {
-  mapdb.run("INSERT INTO road_edge (road_node_id_1, road_node_id_2) VALUES (?, ?)", [node_id_1, node_id_2], function(err) {
-    if (err) {
-      return console.log(err.message);
-    } else {
-      if (displayRoadEdgeInMap(node_id_1, node_id_2)) {
-        console.log("Placed edge between " + node_id_1 + " and " + node_id_2);
+  var new_id;
+  var max_id;
+  mapdb.serialize(function() {
+
+    mapdb.get("SELECT MAX(road_edge_id) AS max FROM road_edge", function(err, row) {
+      max_id = row.max;
+      console.log("max_id is " + max_id);
+
+      if (!max_id) { // If there are no rows in the road_node table
+        new_id = 1;
       } else {
-        console.log("Placement failed.");
+        new_id = max_id + 1;
       }
-    }
+
+
+    });
+
+    mapdb.run("INSERT INTO road_edge (road_edge_id) VALUES (?)", [new_id], function(err) {
+      if (err) {
+        return console.log(err.message);
+      } else {
+        mapdb.run("INSERT INTO road_edge_connects_road_node (road_node_id, road_edge_id) VALUES (?, ?)", [node_id_1, new_id], function(err) {
+          if (err) {
+            return console.log(err.message);
+          }
+          console.log('Added connection between road node ' + node_id_1 + ' and road edge' + new_id);
+        });
+
+        mapdb.run("INSERT INTO road_edge_connects_road_node (road_node_id, road_edge_id) VALUES (?, ?)", [node_id_2, new_id], function(err) {
+          if (err) {
+            return console.log(err.message);
+          }
+          console.log('Added connection between road node ' + node_id_2 + ' and road edge' + new_id);
+        });
+
+        if (displayRoadEdgeInMap(node_id_1, node_id_2)) {
+          console.log("Placed edge between " + node_id_1 + " and " + node_id_2);
+        } else {
+          console.log("Placement failed.");
+        }
+      }
+    });
   });
 }
 

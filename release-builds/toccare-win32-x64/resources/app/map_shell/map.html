@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Toccare Interactive Map</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="./js/fabric.min.js"></script>
+  <script src="./js/map_control.js"></script>
+  <script src="./js/map_json.js"></script>
+</head>
+
+<body>
+  <div class="form" id="form_landmark">
+    <div id="form_landmark_grid">
+      <div id="form_landmark_left" class="grid-item">
+        <div id="form_landmark_name"></div>
+        <br>
+        <div id="form_landmark_description"></div>
+      </div>
+      <div id="form_landmark_right" class="grid-item">
+        <button id="button_landmark_close" onclick="closeFormLandmarkInformation()">X</button>
+        <br>
+        <br>
+        <div id="form_landmark_images">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="draggablemap" onmousedown="dragMap(event)">
+    <canvas id="mapgrid"></canvas>
+  </div>
+  <script>
+    initializeMap();
+  </script>
+</body>
+
+</html>

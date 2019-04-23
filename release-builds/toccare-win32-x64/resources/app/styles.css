@@ -3,6 +3,7 @@ body {
   font-weight: bold;
   font-size: 20pt;
   color: #777;
+  background-color: #777;
   overflow: hidden;
 }
 
@@ -17,12 +18,13 @@ body {
   text-align: center;
   padding-top: 10px;
   line-height: 40px;
-  display: grid;
+  display: none;
   grid-template-columns: auto;
   grid-row-gap: 10px;
 }
 
 #imagebank {
+  display: none;
   height: 40%;
   width: calc(100% - 60px);
   position: fixed;
@@ -55,6 +57,7 @@ body {
 }
 
 #draggablemap {
+  display: none;
   position: absolute;
   top: 0;
   left: 0;
@@ -171,4 +174,8 @@ button:disabled {
 
 #buttons_landmark {
 
+}
+
+#form_region {
+  display:none;
 }

@@ -11,6 +11,11 @@
 </head>
 
 <body onkeydown="renderer.pressKey(event)">
+  <div class="form" id="form_create_project">
+    <p>Create or Open Map Project</p>
+    <button onclick="renderer.newProject()">New Project</button> <button onclick="renderer.openProject()">Open Project</button>
+  </div>
+
   <div class="form" id="form_background_tile">
     <p>Please enter width and height.</p>
     <p># of Horizontal Tiles:</p>
@@ -42,6 +47,9 @@
     </div>
   </div>
 
+  <div class="form" id="form_region">
+  </div>
+
   <div id="toolbar">
     <div class="grid-item">
       <button class="tool" id="button_select" title="Select" onclick="renderer.setActiveTool('select')">
@@ -60,7 +68,7 @@
         <img src="./images/button_road_draw.png">
       </button>
     </div>
-
+<!--
     <div class="grid-item">
       <button class="tool" id="button_smart_road_draw" title="Smart Road Draw" onclick="renderer.setActiveTool('smart_road_draw')">
         <img src="./images/button_smart_road_draw.png">
@@ -72,7 +80,7 @@
         <img src="./images/button_region_draw.png">
       </button>
     </div>
-
+-->
     <div class="grid-item">
       <button class="tool" id="button_text" title="Text" onclick="renderer.setActiveTool('text')">
         <img src="./images/button_text.png">
@@ -118,14 +126,6 @@
   <div id="draggablemap" onmousedown="renderer.dragMap(event)" ondragover="renderer.allowDrop(event)" ondrop="renderer.addImageToMap(event)">
     <canvas id="mapgrid" onclick="renderer.deselectMapElement(event)"></canvas>
   </div>
-
-  <script>
-    renderer.initializeMap();
-    //renderer.dragMap();
-    renderer.loadDatabase();
-    renderer.setActiveTool('select');
-    renderer.setActiveLayer('landmark');
-  </script>
 </body>
 
 </html>

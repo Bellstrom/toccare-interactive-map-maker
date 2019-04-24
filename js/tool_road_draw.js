@@ -107,7 +107,7 @@ function placeRoadEdge(node_id_1, node_id_2) {
           console.log('Added connection between road node ' + node_id_2 + ' and road edge' + new_id);
         });
 
-        if (displayRoadEdgeInMap(node_id_1, node_id_2)) {
+        if (exports.displayRoadEdgeInMap(node_id_1, node_id_2)) {
           console.log("Placed edge between " + node_id_1 + " and " + node_id_2);
         } else {
           console.log("Placement failed.");
@@ -117,7 +117,7 @@ function placeRoadEdge(node_id_1, node_id_2) {
   });
 }
 
-function displayRoadEdgeInMap(node_id_1, node_id_2) {
+exports.displayRoadEdgeInMap = function(node_id_1, node_id_2) {
   var node_1;
   var node_2;
   grid.forEachObject(function(obj) {

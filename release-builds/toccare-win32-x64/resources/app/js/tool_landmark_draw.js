@@ -9,7 +9,7 @@ exports.addDrawnLandmark = function(opt) {
 
   addDrawnLandmarkToDatabase(path);
   s.moveToLayer(path);
-
+  console.log(path);
 }
 
 function addDrawnLandmarkToDatabase(item) {
@@ -26,6 +26,7 @@ function addDrawnLandmarkToDatabase(item) {
       } else {
         new_id = max_id + 1;
       }
+
 
       var pathData = JSON.stringify(item.path);
       mapdb.run("INSERT INTO landmark_drawn (landmark_drawn_id, landmark_drawn_pos_x, landmark_drawn_pos_y, landmark_drawn_rotation, path_json) VALUES (?, ?, ?, ?, ?)", [new_id, item.left, item.top, 0, pathData], function(err) {

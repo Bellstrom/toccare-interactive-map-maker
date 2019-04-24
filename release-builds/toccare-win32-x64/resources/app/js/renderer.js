@@ -168,7 +168,7 @@ exports.newProject = function() {
 
 function createProject(filename, callback) {
   var folderPath = filename.substring(0, filename.length - 4);
-  s.fs.writeFile(filename, folderPath, function(err) {
+  s.fs.writeFile(filename, 'Toccare Interactive Map Maker TIM File', function(err) {
     if (err) {
       return;
     }
@@ -213,7 +213,8 @@ exports.openProject = function() {
       return;
     }
     console.log('Loading project ' + filename);
-    var folderPath = filename.toString().substring(0, filename.length - 4);
+    var folderPath = filename.toString().substring(0, filename.toString().length - 4);
+    console.log(folderPath);
     if (!s.fs.existsSync(folderPath)) {
       console.log('Project folder not found!');
       s.dialog.showMessageBox(null, {
@@ -225,7 +226,8 @@ exports.openProject = function() {
     }
     s.projectDirectory = folderPath;
 
-    loadDatabaseFromFile(s.projectDirectory+'\\mapData.db', function() {
+    loadDatabaseFromFile(s.projectDirectory + '\\mapData.db', function() {
+      resetInterface();
       loadDataFromDatabase();
       displayInterface();
     });
@@ -233,60 +235,124 @@ exports.openProject = function() {
 }
 
 function loadDataFromDatabase() {
-  var imageSelectStatement = "SELECT image_id, filename FROM image ORDER BY image_id";
-  var backgroundSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
-  var landmarkSelectStatement = "SELECT landmark_id AS id, landmark_pos_x AS pos_x, landmark_pos_y AS pos_y, landmark_rotation AS rotation, image_id, landmark_scale_x AS scale_x, landmark_scale_y AS scale_y FROM landmark ORDER BY landmark_id";
-  var landmarkDrawnSelectStatement = "SELECT landmark_drawn_id AS id, landmark_drawn_pos_x AS pos_x, landmark_drawn_pos_y AS pos_y, landmark_drawn_rotation AS rotation, path_json, landmark_drawn_scale_x AS scale_x, landmark_drawn_scale_y AS scale_y FROM landmark_drawn ORDER BY landmark_drawn_id";
-  var textSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
-  var roadNodeSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
-  var roadEdgeSelectStatement = "SELECT background_id AS id, background_pos_x AS pos_x, background_pos_y AS pos_y, background_rotation AS rotation, image_id, background_scale_x AS scale_x, background_scale_y AS scale_y FROM background ORDER BY background_id";
+  var imageSelectStatement = "SELECT image_id FROM image ORDER BY image_id";
+  var backgroundSelectStatement = "SELECT background_id FROM background ORDER BY background_id";
+  var landmarkSelectStatement = "SELECT landmark_id FROM landmark ORDER BY landmark_id";
+  var landmarkDrawnSelectStatement = "SELECT landmark_drawn_id, landmark_drawn_pos_x, landmark_drawn_pos_y, landmark_drawn_rotation, path_json, landmark_drawn_scale_x, landmark_drawn_scale_y FROM landmark_drawn ORDER BY landmark_drawn_id";
+  var textSelectStatement = "SELECT text_id, text_pos_x, text_pos_y, text_rotation, content, text_scale_x, text_scale_y FROM text ORDER BY text_id";
+  var roadNodeSelectStatement = "SELECT road_node_id, road_node_pos_x, road_node_pos_y FROM road_node ORDER BY road_node_id";
+  var roadEdgeSelectStatement = "SELECT road_edge_id FROM road_edge ORDER BY road_edge_id";
+  var roadConnectionSelectStatement = "SELECT road_node_id FROM road_edge_connects_road_node WHERE road_edge_id = ";
 
+  mapdb.serialize(function() {
 
-  mapdb.each(selectStatement, function(err, row) {
-    var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + row.image_id;
-    mapdb.get(imageSelectStatement, function(err, imageRow) {
-      var filepath = s.getImagePath(imageRow.filename);
-      fabric.Image.fromURL(filepath, function(img) {
-        img.left = row.pos_x;
-        img.top = row.pos_y;
-        img.originX = 'center';
-        img.originY = 'center';
-        img.scaleX = row.scale_x;
-        img.scaleY = row.scale_y;
-        img.angle = row.rotation;
-        img.databaseTable = 'background';
-        img.databaseID = id;
-        img.filename = imageRow.filename;
-        addToMap(img);
-      });
+    document.getElementById("imagebank-text").innerHTML = "<p>No images to display.</p>";
+    document.getElementById("imagebank-grid").innerHTML = "";
+
+    mapdb.each(imageSelectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      }
+      document.getElementById("imagebank-text").innerHTML = "<br>"; // This will only be triggered if there are any rows in the image table.
+      displayImageInBank(row.image_id);
     });
-  });
-}
 
-function loadAllDataFromTable(table) {
+    mapdb.each(backgroundSelectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      }
+      displayImageInMap(row.background_id, 'background');
+    });
 
-  var selectStatement = "SELECT " + table + "_pos_x AS pos_x, " + table + "_pos_y AS pos_y, " + table + "_rotation AS rotation, image_id, " + table + "_scale_x AS scale_x, " + table + "_scale_y AS scale_y FROM " + table + " WHERE " + table + "_id = " + id;
+    mapdb.each(landmarkSelectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      }
+      displayImageInMap(row.landmark_id, 'landmark');
+    });
 
-  if (table == 'landmark_drawn') {
+    mapdb.each(landmarkDrawnSelectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      }
+      var pathData = JSON.parse(row.path_json);
+      var path = new s.fabric.Path(pathData, {
+        dirty: false,
+        fill: null,
+        stroke: "rgb(0, 0, 0)",
+        strokeDashArray: null,
+        strokeLineCap: "round",
+        strokeLineJoin: "round",
+        strokeMiterLimit: 10,
+        strokeWidth: 1,
+        left: row.landmark_drawn_pos_x,
+        top: row.landmark_drawn_pos_y,
+        angle: row.landmark_drawn_rotation,
+        scaleX: row.landmark_drawn_scale_x,
+        scaleY: row.landmark_drawn_scale_y,
+        databaseID: row.landmark_drawn_id,
+        databaseTable: 'landmark_drawn'
+      });
+      grid.add(path);
+      s.moveToLayer(path);
+    });
 
-  }
+    mapdb.each(textSelectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      }
+      var text = new s.fabric.IText(row.content, {
+        left: row.text_pos_x,
+        top: row.text_pos_y,
+        angle: row.text_rotation,
+        scaleX: row.text_scale_x,
+        scaleY: row.text_scale_y,
+        databaseID: row.text_id,
+        databaseTable: 'text',
+        originX: 'center',
+        originY: 'center',
+        fontSize: 24,
+        fontFamily: 'Arial',
+        textAlign: 'center'
+      });
 
-  mapdb.each(selectStatement, function(err, row) {
-    var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + row.image_id;
-    mapdb.get(imageSelectStatement, function(err, imageRow) {
-      var filepath = s.getImagePath(imageRow.filename);
-      fabric.Image.fromURL(filepath, function(img) {
-        img.left = row.pos_x;
-        img.top = row.pos_y;
-        img.originX = 'center';
-        img.originY = 'center';
-        img.scaleX = row.scale_x;
-        img.scaleY = row.scale_y;
-        img.angle = row.rotation;
-        img.databaseTable = activeLayer;
-        img.databaseID = id;
-        img.filename = imageRow.filename;
-        addToMap(img);
+      grid.add(text);
+      s.moveToLayer(text);
+    });
+
+    mapdb.each(roadNodeSelectStatement, function(err, row) {
+      if (err) {
+        return console.log(err.message);
+      }
+      var node = new fabric.Circle({
+        left: row.road_node_pos_x,
+        top: row.road_node_pos_y,
+        originX: 'center',
+        originY: 'center',
+        strokeWidth: 2,
+        radius: 8,
+        fill: '#fff',
+        stroke: '#777',
+        databaseID: row.road_node_id,
+        databaseTable: 'road_node',
+        hasControls: false,
+        edgeArray: [],
+      });
+      s.addToMap(node);
+    }, function() {
+      grid.renderAll();
+      mapdb.each(roadEdgeSelectStatement, function(edgeErr, edgeRow) {
+        if (edgeErr) {
+          return console.log(edgeErr.message);
+        }
+        mapdb.all(roadConnectionSelectStatement + edgeRow.road_edge_id, function(error, rows) {
+          if (error) {
+            return console.log(error.message);
+          }
+          console.log('rows[0] is ' + rows[0].road_node_id);
+          console.log('rows[1] is ' + rows[1].road_node_id);
+          tool_road_draw.displayRoadEdgeInMap(rows[0].road_node_id, rows[1].road_node_id);
+        });
       });
     });
   });
@@ -505,7 +571,7 @@ exports.addImageToMap = function(e) {
         if (err) {
           return console.log(err.message);
         } else {
-          displayImageInMap(new_id);
+          displayImageInMap(new_id, activeLayer);
           console.log("Element " + new_id + " added to map in " + activeLayer + " layer at position (" + s.getRelativeCursorX(e) + ", " + s.getRelativeCursorY(e) + ").");
         }
       });
@@ -513,8 +579,8 @@ exports.addImageToMap = function(e) {
   });
 }
 
-function displayImageInMap(id) {
-  var selectStatement = "SELECT " + activeLayer + "_pos_x AS pos_x, " + activeLayer + "_pos_y AS pos_y, " + activeLayer + "_rotation AS rotation, image_id, " + activeLayer + "_scale_x AS scale_x, " + activeLayer + "_scale_y AS scale_y FROM " + activeLayer + " WHERE " + activeLayer + "_id = " + id;
+function displayImageInMap(id, layer) {
+  var selectStatement = "SELECT " + layer + "_pos_x AS pos_x, " + layer + "_pos_y AS pos_y, " + layer + "_rotation AS rotation, image_id, " + layer + "_scale_x AS scale_x, " + layer + "_scale_y AS scale_y FROM " + layer + " WHERE " + layer + "_id = " + id;
 
   mapdb.get(selectStatement, function(err, row) {
     console.log("image_id is " + row.image_id);
@@ -529,7 +595,7 @@ function displayImageInMap(id) {
         img.scaleX = row.scale_x;
         img.scaleY = row.scale_y;
         img.angle = row.rotation;
-        img.databaseTable = activeLayer;
+        img.databaseTable = layer;
         img.databaseID = id;
         img.filename = imageRow.filename;
         addToMap(img);
@@ -668,8 +734,15 @@ exports.setBackgroundImage = function(id) {
   var tileX = s.mapWidth / parseInt(horizontalTiles);
   var tileY = s.mapHeight / parseInt(verticalTiles);
   var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + id;
+  var configUpdateIDStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_image_id";
+  var configUpdateHorizontalStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_horizontal";
+  var configUpdateVerticalStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_vertical";
 
-  exports.removeBackgroundImage();
+  grid.forEachObject(function(obj) {
+    if (obj.class == "backgroundTile") {
+      grid.remove(obj);
+    }
+  });
 
   mapdb.get(imageSelectStatement, function(err, row) {
 
@@ -692,6 +765,7 @@ exports.setBackgroundImage = function(id) {
 
       }
     }
+    
   });
 
   exports.closeFormBackgroundImage();
@@ -706,18 +780,23 @@ exports.removeBackgroundImage = function() {
 }
 
 exports.toggleHideGrid = function() {
+  var opacity;
   grid.forEachObject(function(obj) {
     if (obj.class == "gridline") {
       obj.opacity = !obj.opacity;
+      opacity = obj.opacity;
     }
   });
   grid.renderAll();
+
 }
 
 exports.toggleHideBackgroundImage = function() {
+  var opacity;
   grid.forEachObject(function(obj) {
     if (obj.class == "backgroundTile") {
       obj.opacity = !obj.opacity;
+      opacity = obj.opacity;
     }
   });
   grid.renderAll();

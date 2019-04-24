@@ -734,8 +734,15 @@ exports.setBackgroundImage = function(id) {
   var tileX = s.mapWidth / parseInt(horizontalTiles);
   var tileY = s.mapHeight / parseInt(verticalTiles);
   var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + id;
+  var configUpdateIDStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_image_id";
+  var configUpdateHorizontalStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_horizontal";
+  var configUpdateVerticalStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_vertical";
 
-  exports.removeBackgroundImage();
+  grid.forEachObject(function(obj) {
+    if (obj.class == "backgroundTile") {
+      grid.remove(obj);
+    }
+  });
 
   mapdb.get(imageSelectStatement, function(err, row) {
 
@@ -758,6 +765,7 @@ exports.setBackgroundImage = function(id) {
 
       }
     }
+    
   });
 
   exports.closeFormBackgroundImage();
@@ -772,18 +780,23 @@ exports.removeBackgroundImage = function() {
 }
 
 exports.toggleHideGrid = function() {
+  var opacity;
   grid.forEachObject(function(obj) {
     if (obj.class == "gridline") {
       obj.opacity = !obj.opacity;
+      opacity = obj.opacity;
     }
   });
   grid.renderAll();
+
 }
 
 exports.toggleHideBackgroundImage = function() {
+  var opacity;
   grid.forEachObject(function(obj) {
     if (obj.class == "backgroundTile") {
       obj.opacity = !obj.opacity;
+      opacity = obj.opacity;
     }
   });
   grid.renderAll();

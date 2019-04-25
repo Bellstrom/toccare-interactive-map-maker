@@ -149,3 +149,23 @@ exports.getImagePath = function(filename) {
   var htmlFriendlyPath = exports.projectDirectory.replace(/\\/g, "/");
   return htmlFriendlyPath + '/images/' + filename;
 }
+
+exports.getConfigSetting = function(setting, callback) {
+  var selectStatement = "SELECT value FROM configuration WHERE setting = ?";
+  mapdb.get(selectStatement, setting, function(err, row) {
+    if (err) {
+      return console.log(err.message);
+    }
+    callback(row.value);
+  });
+}
+
+exports.setConfigSetting = function(setting, value, callback) {
+  var updateStatement = "UPDATE configuration SET value = ? WHERE setting = ?";
+  mapdb.run(updateStatement, [value, setting], function(err, row) {
+    if (err) {
+      return console.log(err.message);
+    }
+    callback();
+  });
+}

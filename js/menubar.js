@@ -7,18 +7,6 @@ const template = [
     label: 'File',
     submenu: [
       {
-        label: 'Save',
-        accelerator: 'CmdOrCtrl+S',
-        click () {
-        }
-      },
-      {
-        label: 'Save As',
-        accelerator: 'CmdOrCtrl+Shift+S',
-        click () {
-        }
-      },
-      {
         label: 'Open',
         accelerator: 'CmdOrCtrl+O',
         click (item, focusedWindow) {

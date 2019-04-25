@@ -257,6 +257,27 @@ function loadDataFromDatabase() {
       displayImageInBank(row.image_id);
     });
 
+    s.getConfigSetting('background_tiles_image_id', function(id) {
+      if (id) {
+        s.getConfigSetting('background_tiles_horizontal', function(tileX) {
+          s.getConfigSetting('background_tiles_vertical', function(tileY) {
+            s.getConfigSetting('background_tiles_opacity', function(opacity) {
+              addBackgroundTiles(id, tileX, tileY, opacity);
+            });
+          });
+        });
+      }
+    });
+
+    s.getConfigSetting('grid_opacity', function(opacity) {
+      grid.forEachObject(function(obj) {
+        if (obj.class == "gridline") {
+          obj.opacity = opacity;
+        }
+      });
+      grid.renderAll();
+    });
+
     mapdb.each(backgroundSelectStatement, function(err, row) {
       if (err) {
         return console.log(err.message);
@@ -733,10 +754,21 @@ exports.setBackgroundImage = function(id) {
   }
   var tileX = s.mapWidth / parseInt(horizontalTiles);
   var tileY = s.mapHeight / parseInt(verticalTiles);
+
+  s.setConfigSetting('background_tiles_image_id', id, function() {
+    s.setConfigSetting('background_tiles_horizontal', tileX, function() {
+      s.setConfigSetting('background_tiles_vertical', tileY, function() {
+        s.setConfigSetting('background_tiles_opacity', 1, function() {
+          addBackgroundTiles(id, tileX, tileY);
+        });
+      });
+    });
+  });
+  exports.closeFormBackgroundImage();
+}
+
+function addBackgroundTiles(id, tileX, tileY, opacity) {
   var imageSelectStatement = "SELECT filename FROM image WHERE image_id = " + id;
-  var configUpdateIDStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_image_id";
-  var configUpdateHorizontalStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_horizontal";
-  var configUpdateVerticalStatement = "UPDATE configuration SET value = ? WHERE name = background_tiles_vertical";
 
   grid.forEachObject(function(obj) {
     if (obj.class == "backgroundTile") {
@@ -760,46 +792,56 @@ exports.setBackgroundImage = function(id) {
           hoverCursor: "default",
           class: "backgroundTile",
           filename: row.filename,
-          image_id: id
+          image_id: id,
+          opacity: opacity
         });
 
       }
     }
-    
   });
-
-  exports.closeFormBackgroundImage();
 }
 
 exports.removeBackgroundImage = function() {
-  grid.forEachObject(function(obj) {
-    if (obj.class == "backgroundTile") {
-      grid.remove(obj);
-    }
+  s.setConfigSetting('background_tiles_image_id', null, function() {
+    s.setConfigSetting('background_tiles_horizontal', null, function() {
+      s.setConfigSetting('background_tiles_vertical', null, function() {
+        s.setConfigSetting('background_tiles_opacity', 1, function() {
+          grid.forEachObject(function(obj) {
+            if (obj.class == "backgroundTile") {
+              grid.remove(obj);
+            }
+          });
+        });
+      });
+    });
   });
+
 }
 
 exports.toggleHideGrid = function() {
-  var opacity;
-  grid.forEachObject(function(obj) {
-    if (obj.class == "gridline") {
-      obj.opacity = !obj.opacity;
-      opacity = obj.opacity;
-    }
+  s.getConfigSetting('grid_opacity', function(currentOpacity) {
+    s.setConfigSetting('grid_opacity', !currentOpacity, function() {
+      grid.forEachObject(function(obj) {
+        if (obj.class == "gridline") {
+          obj.opacity = !currentOpacity;
+        }
+      });
+      grid.renderAll();
+    });
   });
-  grid.renderAll();
-
 }
 
 exports.toggleHideBackgroundImage = function() {
-  var opacity;
-  grid.forEachObject(function(obj) {
-    if (obj.class == "backgroundTile") {
-      obj.opacity = !obj.opacity;
-      opacity = obj.opacity;
-    }
+  s.getConfigSetting('background_tiles_opacity', function(currentOpacity) {
+    s.setConfigSetting('background_tiles_opacity', !currentOpacity, function() {
+      grid.forEachObject(function(obj) {
+        if (obj.class == "backgroundTile") {
+          obj.opacity = !currentOpacity;
+        }
+      });
+      grid.renderAll();
+    });
   });
-  grid.renderAll();
 }
 
 exports.setActiveTool = function(tool) {

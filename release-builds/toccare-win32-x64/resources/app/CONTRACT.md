@@ -1,21 +1,26 @@
 # Contract Tasks
 ## Task 1
-### GUI: Does the software launch and display a menu bar, toolbar, image bank, and map area?
+### GUI: Does the software launch and display a menu bar, toolbar, image bank, and map area after creating a project?
 1. Launch Toccare Map Maker.
-2. Verify that a menu bar appears at the top of the window.
-3. Verify that a toolbar appears at the left side of the window.
-4. Verify that a space containing the text “No images to display.” (the “image bank”) appears at the bottom of the window.
-5. Verify that there is a rectangular space remaining in the window (the “map area”).
-6. Test passes if steps 2-5 are verified.
+2. Verify that the window shows a box with two buttons: "New Project" and "Open Project".
+3. Press New Project.
+4. Verify that a save dialog opens.
+5. Navigate to a directory of your choosing.
+6. Type in "new_project_test" and click Save.
+7. Verify that a menu bar appears at the top of the window.
+8. Verify that a toolbar appears at the left side of the window.
+9. Verify that a space containing the text “No images to display.” (the “image bank”) appears at the bottom of the window.
+10. Verify that there is a rectangular space remaining in the window (the “map area”).
+11. Test passes if steps 2, 4, and 7-10 are verified.
 
 ## Task 2
 ### Map Display: Does a map appear in the map area?
-1. Launch Toccare Map Maker.
+1. Follow the steps in Task #1.
 2. Test passes if a grid appears in the map area.
 
 ## Task 3
 ### Map Panning: Can the map be panned?
-1. Launch Toccare Map Maker.
+1. Follow the steps in Task #1.
 2. Place cursor in map area, anywhere outside the central 3x3 set of squares.
 3. Hold right click.
 4. Move the cursor in a clockwise circle.
@@ -25,7 +30,7 @@
 
 ## Task 4
 ### Map Zooming: Can the map be zoomed in and out?
-1. Launch Toccare Map Maker.
+1. Follow the steps in Task #1.
 2. Place cursor anywhere in the map area.
 3. Scroll up with the scroll wheel.
 4. Verify that the grid increases in size.
@@ -35,7 +40,7 @@
 
 ## Task 5
 ### Import Image: Can an image be copied into the project from disk and displayed in the image bank?
-1. Launch Toccare Map Maker.
+1. Follow the steps in Task #1.
 2. Click on the plus button in the top right corner of the image bank.
 3. Locate and open "gradient.png” in the /images folder.
 4. Test passes if the image appears in the image bank.
@@ -175,12 +180,11 @@
 ## Task 18
 ### Load Map Project: Can a map project be loaded from a set of project files?
 1. Launch Toccare Map Maker.
-2. Click on File in the menu bar.
-3. Click Open
-4. Verify that an open dialog box opens.
-5. Locate and click on “test_project_open.tim”.
-6. Click OK.
-7. Test passes if a map with a tiled background image, placed background elements, and placed landmark elements appears.
+2. Click on Open Project.
+3. Verify that an open dialog box opens.
+4. Locate and click on "new_project_test.tim”.
+5. Click OK.
+6. Test passes if the map made in the previous tasks appears.
 
 ## Task 19
 ### Close Map Project: Can the user close a map project without closing the software itself?
@@ -189,28 +193,23 @@
 3. Click Close Project.
 4. Verify that a dialog box appears.
 5. Click OK.
-6. Test passes if the map area changes to a blank, solid color, and the image bank is empty.
+6. Test passes if the window returns to the initial Open/Save page.
 
 ## Task 20
 ### Save New Map Project: Can a new map be saved to a set of project files?
 1. Follow the steps in Tasks #7 and #14.
 2. Scale, move, and rotate the landmark and background elements.
-3. Click on File in the menu bar.
-4. Click Save.
-5. Verify that a save dialog box opens.
-6. Type “test_project_save.tim” in the dialog box.
-7. Click OK.
-8. Close Toccare Map Maker.
-9. Verify that a file named “test_project_save.tim” and a folder named “test_project_save” have appeared in the specified directory.
-10. Repeat Task #9 on test_project_save.tim.
-11. Test passes if the map loads in the same configuration as it was placed in steps 1-2.
+3. Close Toccare Map Maker.
+4. Verify that a file named “new_project_test.tim” and a folder named “new_project_test” have appeared in the specified directory.
+5. Repeat Task #9 on new_project_test.tim.
+6. Test passes if the map loads in the same configuration as it was placed in steps 1-2.
 
 ## Task 21
 ### Save Existing Map Project: Can a previously saved map project be overwritten with new changes?
 1. Follow the steps in Task #20.
 2. Manipulate the background and landmark elements into different positions, sizes, and rotations than they were before.
-3. Verify that the date modified tag on the test_project_save.tim file has changed.
-4. Save the project, and close and relaunch Toccare Map Maker.
+3. Verify that the date modified tag on the "mapData.db" file in the new_project_test folder has changed.
+4. Close and relaunch Toccare Map Maker.
 5. Test passes if the map loads in the same configuration as it was placed in step 2.
 
 ## Task 22
@@ -234,7 +233,8 @@
 1. Follow the steps in Task #18.
 2. Click File.
 3. Click New Project.
-4. Click OK in the dialog box that appears.
+4. Type in "new_project_test_2".
+4. Click Save.
 5. Test passes if the previous map project disappears and the default project described in Task #2 appears.
 
 ## Task 24
@@ -437,17 +437,14 @@
 
 ## Task 45
 ### Export Embeddable Map: Can the map be exported to an embeddable HTML5 object which can be interacted with?
-1. Load “test_project_embed.tim”.
+1. Load a project .
 2. Click File.
 3. Click Export to HTML5.
-5. Navigate to the /embed_test folder and click Save.
-4. Copy the code in the dialog box that appears.
-5. Open “/embed_test/map_data.html” in a text editor.
-6. Replace “PLACE CODE HERE” with the copied code.
-7. Save map_data.html.
-8. Open embedded_map.html in Google Chrome.
-9. Verify that the map is embedded in the webpage.
-10. Verify that the map can be panned by clicking and dragging.
-11. Verify that the map can be zoomed in and out with the scroll wheel.
-12. Verify that information appears when a landmark is double clicked.
-13. Test passes if steps 9-12 are verified.
+5. Create a folder named "Export Test" and click Select Folder with the folder highlighted.
+4. Verify that a message box appears and click OK.
+5. Open “/Export Test/map.html” in Google Chrome.
+6. Verify that the map appears in the webpage.
+7. Verify that the map can be panned by clicking and dragging.
+8. Verify that the map can be zoomed in and out with the scroll wheel.
+9. Verify that information appears when a landmark is double clicked.
+10. Test passes if steps 4 and 6-9 are verified.
